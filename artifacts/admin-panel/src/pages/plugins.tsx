@@ -128,7 +128,7 @@ export function PluginsPage() {
       <PluginCard
         name="TVD Admin Bridge"
         description="إضافة الربط بين لوحة التحكم والموقع — تتيح إدارة الأقسام وترتيبها وإخفاءها والشعار وقسم ParkingPro وإيميل التأكيد من هذه اللوحة."
-        version="1.9.0"
+        version="2.0.0"
         downloadHref={`${API_BASE}/api/wp/download-bridge-plugin`}
         wpAdminPlugins={wpAdminPlugins}
         wpAdminUpload={wpAdminUpload}
