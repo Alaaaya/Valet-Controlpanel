@@ -23,7 +23,7 @@ const navigation = [
       { name: "معلومات التواصل", href: "/contact", icon: Phone },
       { name: "ألوان الموقع", href: "/colors", icon: Palette },
       { name: "شعار الموقع", href: "/logo", icon: Image },
-      { name: "جدول الأسعار", href: "/pricing", icon: Euro },
+      { name: "أسعار الحجز", href: "/pricing", icon: Euro },
       { name: "إيميل الحجز", href: "/booking-email", icon: Mail },
     ],
   },

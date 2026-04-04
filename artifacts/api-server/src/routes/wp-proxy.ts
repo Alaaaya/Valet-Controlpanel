@@ -321,6 +321,59 @@ router.post("/wp/booking-email", async (req, res): Promise<void> => {
   }
 });
 
+// ── Booking Prices (control €12/€15 etc. in the live booking form) ───────────
+
+const BP_DEFAULT = { freiflaeche: 1200, parkhaus: 1500, reinigung_aussen: 4000, reinigung_innen: 7000 };
+const BP_FILE = path.resolve(__dirname, "../../data/booking-prices.json");
+
+function readBpLocal(): Record<string, number> {
+  try { return { ...BP_DEFAULT, ...JSON.parse(fs.readFileSync(BP_FILE, "utf8")) }; }
+  catch { return { ...BP_DEFAULT }; }
+}
+function writeBpLocal(d: Record<string, unknown>): void {
+  try { fs.mkdirSync(path.dirname(BP_FILE), { recursive: true }); fs.writeFileSync(BP_FILE, JSON.stringify(d, null, 2), "utf8"); }
+  catch { /* ignore */ }
+}
+
+router.get("/wp/booking-prices", async (_req, res): Promise<void> => {
+  try {
+    const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+    const WP_USER = process.env.WP_USERNAME ?? "";
+    const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
+    const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
+    const r = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/booking-prices`, {
+      headers: { Authorization: `Basic ${token}` },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (r.ok) {
+      const d = await r.json() as Record<string, unknown>;
+      if (d && typeof d.freiflaeche === "number") { res.json(d); return; }
+    }
+  } catch { /* fall through to local */ }
+  res.json(readBpLocal());
+});
+
+router.post("/wp/booking-prices", async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+  writeBpLocal(body);
+  try {
+    const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+    const WP_USER = process.env.WP_USERNAME ?? "";
+    const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
+    const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
+    const r = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/booking-prices`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(5000),
+    });
+    const d = await r.json();
+    res.json({ ok: true, saved: true, wp: d });
+    return;
+  } catch { /* ignore */ }
+  res.json({ ok: true, saved: true });
+});
+
 // ── Pricing (local-first, WordPress optional) ─────────────────────────────────
 
 const PRICING_FILE = path.resolve(__dirname, "../../data/pricing.json");

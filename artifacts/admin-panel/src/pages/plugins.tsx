@@ -118,7 +118,7 @@ export function PluginsPage() {
       <PluginCard
         name="ParkingPro Booking Widgets"
         description="ويدجت الحجز الخاص بـ ParkingPro — يتيح لزوار الموقع حجز مواقف السيارات مباشرة من صفحتك. أرسلته لك شركة ParkingPro."
-        version="1.2.50"
+        version="2.0.8"
         downloadHref={`${API_BASE}/api/wp/download-parkingpro-plugin`}
         wpAdminPlugins={wpAdminPlugins}
         wpAdminUpload={wpAdminUpload}
