@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { wpGet, wpPost, wpDelete, wpGetSettings, wpUpdateSettings } from "../lib/wordpress";
 
@@ -125,15 +126,28 @@ router.get("/wp/users/me", async (req, res): Promise<void> => {
 
 // ── TVD Admin Bridge Plugin Download ─────────────────────────────────────────
 
+function resolveStatic(filename: string): string {
+  // Production (dist/static) or development (src/static, one level up from routes/)
+  const candidates = [
+    path.join(__dirname, "static", filename),
+    path.join(__dirname, "..", "static", filename),
+  ];
+  return candidates.find((p) => fs.existsSync(p)) ?? candidates[0];
+}
+
 router.get("/wp/download-bridge-plugin", (req, res): void => {
-  const zipPath = path.join(process.cwd(), "src", "static", "tvd-admin-bridge.zip");
+  const zipPath = resolveStatic("tvd-admin-bridge.zip");
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", 'attachment; filename="tvd-admin-bridge.zip"');
   res.download(zipPath, "tvd-admin-bridge.zip");
 });
 
 // ── ParkingPro Plugin Download ────────────────────────────────────────────────
 
 router.get("/wp/download-parkingpro-plugin", (req, res): void => {
-  const zipPath = path.join(process.cwd(), "src", "static", "parkingpro-booking-widgets.zip");
+  const zipPath = resolveStatic("parkingpro-booking-widgets.zip");
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", 'attachment; filename="parkingpro-booking-widgets.zip"');
   res.download(zipPath, "parkingpro-booking-widgets.zip");
 });
 
