@@ -126,9 +126,15 @@ router.get("/wp/users/me", async (req, res): Promise<void> => {
 // ── TVD Admin Bridge Plugin Download ─────────────────────────────────────────
 
 router.get("/wp/download-bridge-plugin", (req, res): void => {
-  // Works both in dev (src/routes/ -> src/static/) and prod (dist/ -> src/static/)
   const zipPath = path.join(process.cwd(), "src", "static", "tvd-admin-bridge.zip");
   res.download(zipPath, "tvd-admin-bridge.zip");
+});
+
+// ── ParkingPro Plugin Download ────────────────────────────────────────────────
+
+router.get("/wp/download-parkingpro-plugin", (req, res): void => {
+  const zipPath = path.join(process.cwd(), "src", "static", "parkingpro-booking-widgets.zip");
+  res.download(zipPath, "parkingpro-booking-widgets.zip");
 });
 
 // ── TVD Admin Bridge: check if plugin is installed ───────────────────────────

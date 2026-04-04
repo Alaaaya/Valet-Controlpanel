@@ -14,6 +14,7 @@ import { ColorsPage } from "@/pages/colors";
 import { WpSettingsPage } from "@/pages/wp-settings";
 import { WpPagesPage } from "@/pages/wp-pages";
 import { WpPostsPage } from "@/pages/wp-posts";
+import { PluginsPage } from "@/pages/plugins";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ function Router() {
         <Route path="/wp-settings" component={WpSettingsPage} />
         <Route path="/wp-pages" component={WpPagesPage} />
         <Route path="/wp-posts" component={WpPostsPage} />
+        <Route path="/plugins" component={PluginsPage} />
         <Route component={NotFound} />
       </Switch>
     </MainLayout>

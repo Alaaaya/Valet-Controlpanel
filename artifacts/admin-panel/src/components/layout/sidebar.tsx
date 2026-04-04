@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Settings, Layers, Phone, Palette, Plane, Globe, FileText, BookOpen } from "lucide-react";
+import { LayoutDashboard, Settings, Layers, Phone, Palette, Plane, Globe, FileText, BookOpen, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -10,6 +10,7 @@ const navigation = [
       { name: "إعدادات WordPress", href: "/wp-settings", icon: Globe },
       { name: "صفحات الموقع", href: "/wp-pages", icon: FileText },
       { name: "مدونة WordPress", href: "/wp-posts", icon: BookOpen },
+      { name: "إضافات الموقع", href: "/plugins", icon: Puzzle },
     ],
   },
   {
