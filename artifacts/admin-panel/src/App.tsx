@@ -11,6 +11,9 @@ import { SettingsPage } from "@/pages/settings";
 import { SectionsPage } from "@/pages/sections";
 import { ContactPage } from "@/pages/contact";
 import { ColorsPage } from "@/pages/colors";
+import { WpSettingsPage } from "@/pages/wp-settings";
+import { WpPagesPage } from "@/pages/wp-pages";
+import { WpPostsPage } from "@/pages/wp-posts";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +26,9 @@ function Router() {
         <Route path="/sections" component={SectionsPage} />
         <Route path="/contact" component={ContactPage} />
         <Route path="/colors" component={ColorsPage} />
+        <Route path="/wp-settings" component={WpSettingsPage} />
+        <Route path="/wp-pages" component={WpPagesPage} />
+        <Route path="/wp-posts" component={WpPostsPage} />
         <Route component={NotFound} />
       </Switch>
     </MainLayout>

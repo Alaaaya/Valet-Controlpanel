@@ -21,13 +21,30 @@ pnpm workspace monorepo using TypeScript. Contains a full-stack admin panel (ل�
 ## Artifacts
 
 - **admin-panel** (`/`) — Arabic admin dashboard for Travel Valet Düsseldorf
-  - `/` — Dashboard overview with quick stats
-  - `/settings` — Edit all site text (hero, about, booking, footer, meta)
+  - `/` — Dashboard overview with live WordPress stats
+  - `/wp-settings` — Edit WordPress site title, tagline, admin email (live WP API)
+  - `/wp-pages` — Create/edit/delete WordPress pages (live WP API)
+  - `/wp-posts` — Create/edit/delete WordPress blog posts (live WP API)
+  - `/settings` — Edit all site text stored in local DB (hero, about, booking, footer, meta)
   - `/sections` — Manage and reorder website sections with drag-and-drop
   - `/contact` — WhatsApp, email, phone, address, social links, booking URL
   - `/colors` — Visual color picker for all site theme colors
 
 - **api-server** (`/api`) — Express REST API backend
+  - `/api/wp/settings` — WordPress settings proxy (GET/PATCH)
+  - `/api/wp/pages` — WordPress pages proxy (GET/POST/PATCH/DELETE)
+  - `/api/wp/posts` — WordPress posts proxy (GET/POST/PATCH/DELETE)
+  - `/api/wp/media` — WordPress media proxy
+  - `/api/wp/categories` — WordPress categories proxy
+
+## WordPress Integration
+
+- **Site URL**: `https://traveldüsseldorf.de` (IDN: `xn--traveldsseldorf-5vb.de`)
+- **WP_SITE_URL** env var — WordPress site URL
+- **WP_USERNAME** env var — WordPress admin username
+- **WP_APP_PASSWORD** secret — WordPress Application Password
+- All WP requests use HTTP Basic Auth with base64-encoded `username:app_password`
+- WordPress REST API proxied at `/api/wp/*` — frontend calls these, never calls WP directly
 
 ## Database Tables
 
