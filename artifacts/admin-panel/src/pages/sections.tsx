@@ -64,12 +64,13 @@ function useLiveSections() {
 const DEFAULT_SECTIONS: LiveSection[] = [
   { id: "home",        label: "القسم الرئيسي",                        visible: true, order: 0 },
   { id: "tvd-stats",   label: "الإحصائيات (24/7 · 5★ · 2min · 100%)", visible: true, order: 1 },
-  { id: "services",   label: "الخدمات",                               visible: true, order: 2 },
-  { id: "ablauf",     label: "كيف يعمل",                              visible: true, order: 3 },
-  { id: "buchen",     label: "الحجز",                                 visible: true, order: 4 },
-  { id: "parkingpro", label: "احجز الآن - ParkingPro",               visible: true, order: 5 },
-  { id: "ueber-uns",  label: "من نحن",                                visible: true, order: 6 },
-  { id: "kontakt",    label: "تواصل معنا",                            visible: true, order: 7 },
+  { id: "services",    label: "الخدمات",                              visible: true, order: 2 },
+  { id: "ablauf",      label: "كيف يعمل",                             visible: true, order: 3 },
+  { id: "buchen",      label: "الحجز",                                visible: true, order: 4 },
+  { id: "parkingpro",  label: "احجز الآن - ParkingPro",              visible: true, order: 5 },
+  { id: "ueber-uns",   label: "من نحن",                               visible: true, order: 6 },
+  { id: "kontakt",     label: "تواصل معنا",                           visible: true, order: 7 },
+  { id: "tvd-footer",  label: "الفوتر (معلومات الاتصال والروابط)",   visible: true, order: 8 },
 ];
 
 function SetupInstructions({ onDownload }: { onDownload: () => void }) {
