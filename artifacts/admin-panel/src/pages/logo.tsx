@@ -16,25 +16,31 @@ export function LogoPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoSize, setLogoSize] = useState<number>(40);
 
-  const { data, isLoading } = useQuery<{ type: string; url: string }>({
+  const { data, isLoading } = useQuery<{ type: string; url: string; size?: number }>({
     queryKey: ["logo-url"],
     queryFn: () => fetch(`${API_BASE}/api/wp/logo`).then((r) => r.json()),
     staleTime: 0,
   });
 
   useEffect(() => {
-    if (data !== undefined && logoUrl === null) {
-      setLogoUrl(data.url ?? "");
+    if (data !== undefined) {
+      if (logoUrl === null) setLogoUrl(data.url ?? "");
+      if (data.size) setLogoSize(data.size);
     }
   }, [data]);
 
   const saveMutation = useMutation({
-    mutationFn: (url: string) =>
+    mutationFn: (payload: { url: string; size: number }) =>
       fetch(`${API_BASE}/api/wp/logo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, type: url.trim() ? "url" : "svg" }),
+        body: JSON.stringify({
+          url: payload.url,
+          type: payload.url.trim() ? "url" : "svg",
+          size: payload.size,
+        }),
       }).then((r) => r.json()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["logo-url"] });
@@ -70,7 +76,12 @@ export function LogoPage() {
           <span className="text-gray-400 text-xs">≡</span>
           <a className="flex items-center gap-2 text-white font-semibold text-sm no-underline">
             {hasLogo ? (
-              <img src={currentUrl} alt="Logo" className="w-7 h-7 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              <img
+                src={currentUrl}
+                alt="Logo"
+                style={{ height: `${logoSize}px`, width: "auto", objectFit: "contain" }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
             ) : (
               DEFAULT_SVG
             )}
@@ -78,7 +89,7 @@ export function LogoPage() {
           </a>
         </div>
         <p className="text-xs text-muted-foreground text-center">
-          {hasLogo ? "شعارك المخصص" : "الأيقونة الافتراضية (طائرة ذهبية) — ستُستخدم إذا لم تضع رابطاً"}
+          {hasLogo ? `شعارك المخصص — ${logoSize}px` : "الأيقونة الافتراضية (طائرة ذهبية)"}
         </p>
       </div>
 
@@ -93,7 +104,7 @@ export function LogoPage() {
               {" "}أو مكتبة الوسائط في WordPress، ثم الصق رابط الصورة المباشر هنا.
             </p>
             <p className="text-orange-600 font-medium">
-              ⚠️ تأكد أن الرابط رابط صورة مباشر يبدأ بـ <span dir="ltr" className="font-mono">i.imgur.com</span> وينتهي بـ <span dir="ltr" className="font-mono">.jpg</span> أو <span dir="ltr" className="font-mono">.png</span> — وليس رابط ألبوم مثل <span dir="ltr" className="font-mono">imgur.com/a/...</span>
+              ⚠️ الرابط يجب أن يبدأ بـ <span dir="ltr" className="font-mono">i.imgur.com</span> وينتهي بـ <span dir="ltr" className="font-mono">.jpg</span> أو <span dir="ltr" className="font-mono">.png</span> — وليس <span dir="ltr" className="font-mono">imgur.com/a/...</span>
             </p>
           </div>
         </div>
@@ -111,7 +122,7 @@ export function LogoPage() {
                 type="url"
                 value={currentUrl}
                 onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://example.com/logo.png"
+                placeholder="https://i.imgur.com/xxxxxx.png"
                 dir="ltr"
                 className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm
                            focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/60"
@@ -129,9 +140,32 @@ export function LogoPage() {
           )}
         </div>
 
+        {/* Size slider */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-semibold">حجم الشعار</label>
+            <span className="text-sm font-mono bg-muted px-2 py-0.5 rounded text-muted-foreground">
+              {logoSize}px
+            </span>
+          </div>
+          <input
+            type="range"
+            min={20}
+            max={100}
+            step={2}
+            value={logoSize}
+            onChange={(e) => setLogoSize(Number(e.target.value))}
+            className="w-full accent-primary"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>صغير (20px)</span>
+            <span>كبير (100px)</span>
+          </div>
+        </div>
+
         <div className="flex gap-3 pt-1">
           <button
-            onClick={() => saveMutation.mutate(currentUrl)}
+            onClick={() => saveMutation.mutate({ url: currentUrl, size: logoSize })}
             disabled={saveMutation.isPending || (isLoading && logoUrl === null)}
             className="flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-5 py-2.5
                        text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
