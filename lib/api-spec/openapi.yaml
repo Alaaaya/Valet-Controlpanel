@@ -1,15 +1,22 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Travel Valet Admin Panel API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: settings
+    description: Site settings management
+  - name: sections
+    description: Page sections management
+  - name: contact
+    description: Contact information management
+  - name: colors
+    description: Color theme management
 paths:
   /healthz:
     get:
@@ -24,6 +31,209 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get all site settings
+      responses:
+        "200":
+          description: Site settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSettings"
+    patch:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update site settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSiteSettingsBody"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSettings"
+
+  /sections:
+    get:
+      operationId: getSections
+      tags: [sections]
+      summary: Get all page sections
+      responses:
+        "200":
+          description: List of sections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Section"
+    post:
+      operationId: createSection
+      tags: [sections]
+      summary: Create a new section
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSectionBody"
+      responses:
+        "201":
+          description: Created section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Section"
+
+  /sections/reorder:
+    patch:
+      operationId: reorderSections
+      tags: [sections]
+      summary: Reorder sections
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderSectionsBody"
+      responses:
+        "200":
+          description: Reordered sections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Section"
+
+  /sections/{id}:
+    get:
+      operationId: getSection
+      tags: [sections]
+      summary: Get a section by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Section"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateSection
+      tags: [sections]
+      summary: Update a section
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSectionBody"
+      responses:
+        "200":
+          description: Updated section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Section"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteSection
+      tags: [sections]
+      summary: Delete a section
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /contact:
+    get:
+      operationId: getContact
+      tags: [contact]
+      summary: Get contact information
+      responses:
+        "200":
+          description: Contact info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactInfo"
+    patch:
+      operationId: updateContact
+      tags: [contact]
+      summary: Update contact information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContactInfoBody"
+      responses:
+        "200":
+          description: Updated contact info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactInfo"
+
+  /colors:
+    get:
+      operationId: getColors
+      tags: [colors]
+      summary: Get color theme
+      responses:
+        "200":
+          description: Color theme
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColorTheme"
+    patch:
+      operationId: updateColors
+      tags: [colors]
+      summary: Update color theme
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateColorThemeBody"
+      responses:
+        "200":
+          description: Updated color theme
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColorTheme"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +244,249 @@ components:
       required:
         - status
 
+    SiteSettings:
+      type: object
+      properties:
+        id:
+          type: integer
+        siteName:
+          type: string
+        heroTitle:
+          type: string
+        heroSubtitle:
+          type: string
+        aboutTitle:
+          type: string
+        aboutText:
+          type: string
+        servicesTitle:
+          type: string
+        bookingTitle:
+          type: string
+        bookingSubtitle:
+          type: string
+        footerText:
+          type: string
+        metaDescription:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - siteName
+        - heroTitle
+        - heroSubtitle
+        - aboutTitle
+        - aboutText
+        - servicesTitle
+        - bookingTitle
+        - bookingSubtitle
+        - footerText
+        - metaDescription
+        - updatedAt
+
+    UpdateSiteSettingsBody:
+      type: object
+      properties:
+        siteName:
+          type: string
+        heroTitle:
+          type: string
+        heroSubtitle:
+          type: string
+        aboutTitle:
+          type: string
+        aboutText:
+          type: string
+        servicesTitle:
+          type: string
+        bookingTitle:
+          type: string
+        bookingSubtitle:
+          type: string
+        footerText:
+          type: string
+        metaDescription:
+          type: string
+
+    Section:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        label:
+          type: string
+        isVisible:
+          type: boolean
+        sortOrder:
+          type: integer
+        updatedAt:
+          type: string
+      required:
+        - id
+        - name
+        - label
+        - isVisible
+        - sortOrder
+        - updatedAt
+
+    CreateSectionBody:
+      type: object
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        isVisible:
+          type: boolean
+        sortOrder:
+          type: integer
+      required:
+        - name
+        - label
+
+    UpdateSectionBody:
+      type: object
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        isVisible:
+          type: boolean
+        sortOrder:
+          type: integer
+
+    ReorderSectionsBody:
+      type: object
+      properties:
+        orderedIds:
+          type: array
+          items:
+            type: integer
+      required:
+        - orderedIds
+
+    ContactInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        whatsappNumber:
+          type: string
+        whatsappMessage:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        bookingUrl:
+          type: string
+        facebookUrl:
+          type: ["string", "null"]
+        instagramUrl:
+          type: ["string", "null"]
+        twitterUrl:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+      required:
+        - id
+        - whatsappNumber
+        - whatsappMessage
+        - email
+        - phone
+        - address
+        - bookingUrl
+        - updatedAt
+
+    UpdateContactInfoBody:
+      type: object
+      properties:
+        whatsappNumber:
+          type: string
+        whatsappMessage:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        bookingUrl:
+          type: string
+        facebookUrl:
+          type: ["string", "null"]
+        instagramUrl:
+          type: ["string", "null"]
+        twitterUrl:
+          type: ["string", "null"]
+
+    ColorTheme:
+      type: object
+      properties:
+        id:
+          type: integer
+        primaryColor:
+          type: string
+        secondaryColor:
+          type: string
+        accentColor:
+          type: string
+        backgroundColor:
+          type: string
+        textColor:
+          type: string
+        headerBgColor:
+          type: string
+        footerBgColor:
+          type: string
+        buttonColor:
+          type: string
+        buttonTextColor:
+          type: string
+        linkColor:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - primaryColor
+        - secondaryColor
+        - accentColor
+        - backgroundColor
+        - textColor
+        - headerBgColor
+        - footerBgColor
+        - buttonColor
+        - buttonTextColor
+        - linkColor
+        - updatedAt
+
+    UpdateColorThemeBody:
+      type: object
+      properties:
+        primaryColor:
+          type: string
+        secondaryColor:
+          type: string
+        accentColor:
+          type: string
+        backgroundColor:
+          type: string
+        textColor:
+          type: string
+        headerBgColor:
+          type: string
+        footerBgColor:
+          type: string
+        buttonColor:
+          type: string
+        buttonTextColor:
+          type: string
+        linkColor:
+          type: string

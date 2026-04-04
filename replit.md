@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+pnpm workspace monorepo using TypeScript. Contains a full-stack admin panel (لوحة التحكم) for Travel Valet Düsseldorf — a travel valet booking service. The admin panel allows complete control over the WordPress-powered website content without changing its design.
 
 ## Stack
 
@@ -15,6 +15,26 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
+- **Frontend**: React + Vite + Tailwind CSS + shadcn/ui
+- **Language/RTL**: Arabic (RTL), Cairo font
+
+## Artifacts
+
+- **admin-panel** (`/`) — Arabic admin dashboard for Travel Valet Düsseldorf
+  - `/` — Dashboard overview with quick stats
+  - `/settings` — Edit all site text (hero, about, booking, footer, meta)
+  - `/sections` — Manage and reorder website sections with drag-and-drop
+  - `/contact` — WhatsApp, email, phone, address, social links, booking URL
+  - `/colors` — Visual color picker for all site theme colors
+
+- **api-server** (`/api`) — Express REST API backend
+
+## Database Tables
+
+- `site_settings` — All text content of the website
+- `sections` — Website sections with visibility and sort order
+- `contact_info` — WhatsApp, email, phone, address, booking URLs
+- `color_theme` — Color palette for the entire site
 
 ## Key Commands
 
