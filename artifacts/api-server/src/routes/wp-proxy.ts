@@ -1,5 +1,9 @@
 import { Router, type IRouter } from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 import { wpGet, wpPost, wpDelete, wpGetSettings, wpUpdateSettings } from "../lib/wordpress";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const router: IRouter = Router();
 
@@ -116,6 +120,63 @@ router.get("/wp/menus", async (req, res): Promise<void> => {
 
 router.get("/wp/users/me", async (req, res): Promise<void> => {
   const data = await wpGet("/users/me");
+  res.json(data);
+});
+
+// ── TVD Admin Bridge Plugin Download ─────────────────────────────────────────
+
+router.get("/wp/download-bridge-plugin", (req, res): void => {
+  // Works both in dev (src/routes/ -> src/static/) and prod (dist/ -> src/static/)
+  const zipPath = path.join(process.cwd(), "src", "static", "tvd-admin-bridge.zip");
+  res.download(zipPath, "tvd-admin-bridge.zip");
+});
+
+// ── TVD Admin Bridge: check if plugin is installed ───────────────────────────
+
+router.get("/wp/bridge-status", async (req, res): Promise<void> => {
+  try {
+    const WP_URL = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+    const response = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/sections`);
+    if (response.ok) {
+      res.json({ installed: true });
+    } else {
+      res.json({ installed: false });
+    }
+  } catch {
+    res.json({ installed: false });
+  }
+});
+
+// ── TVD Admin Bridge: sections proxy ─────────────────────────────────────────
+
+router.get("/wp/live-sections", async (req, res): Promise<void> => {
+  const WP_URL = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_USER = process.env.WP_USERNAME ?? "";
+  const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
+  const token = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
+
+  const response = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/sections`, {
+    headers: { Authorization: `Basic ${token}` },
+  });
+  const data = await response.json();
+  res.json(data);
+});
+
+router.post("/wp/live-sections", async (req, res): Promise<void> => {
+  const WP_URL = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_USER = process.env.WP_USERNAME ?? "";
+  const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
+  const token = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
+
+  const response = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/sections`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(req.body),
+  });
+  const data = await response.json();
   res.json(data);
 });
 

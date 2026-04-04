@@ -1,13 +1,5 @@
-import { useMemo, useState } from "react";
-import {
-  useGetSections,
-  getGetSectionsQueryKey,
-  useUpdateSection,
-  useReorderSections,
-  useCreateSection,
-  useDeleteSection,
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -17,320 +9,408 @@ import {
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 import {
-  GripVertical,
   Eye,
   EyeOff,
-  Plus,
-  Trash2,
   ChevronUp,
   ChevronDown,
   Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Download,
+  ExternalLink,
+  Globe,
+  RefreshCw,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-export function SectionsPage() {
+const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+type LiveSection = {
+  id: string;
+  label: string;
+  visible: boolean;
+  order: number;
+};
+
+function useBridgeStatus() {
+  return useQuery<{ installed: boolean }>({
+    queryKey: ["bridge-status"],
+    queryFn: () =>
+      fetch(`${API_BASE}/api/wp/bridge-status`).then((r) => r.json()),
+    refetchInterval: 30_000,
+    staleTime: 20_000,
+  });
+}
+
+function useLiveSections() {
+  return useQuery<LiveSection[]>({
+    queryKey: ["live-sections"],
+    queryFn: async () => {
+      const r = await fetch(`${API_BASE}/api/wp/live-sections`);
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message ?? "فشل جلب الأقسام");
+      const arr: LiveSection[] = Array.isArray(data.sections)
+        ? data.sections
+        : DEFAULT_SECTIONS;
+      return [...arr].sort((a, b) => a.order - b.order);
+    },
+    enabled: false,
+    staleTime: 30_000,
+  });
+}
+
+const DEFAULT_SECTIONS: LiveSection[] = [
+  { id: "home", label: "الرئيسية", visible: true, order: 0 },
+  { id: "services", label: "الخدمات", visible: true, order: 1 },
+  { id: "ablauf", label: "كيف يعمل", visible: true, order: 2 },
+  { id: "buchen", label: "الحجز", visible: true, order: 3 },
+  { id: "ueber-uns", label: "من نحن", visible: true, order: 4 },
+  { id: "kontakt", label: "تواصل معنا", visible: true, order: 5 },
+];
+
+function SetupInstructions({ onDownload }: { onDownload: () => void }) {
+  return (
+    <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-600" />
+          <CardTitle className="text-amber-900 dark:text-amber-200">
+            مطلوب: تثبيت إضافة الربط
+          </CardTitle>
+        </div>
+        <CardDescription className="text-amber-700 dark:text-amber-300">
+          أقسام موقعك مكتوبة في كود القالب مباشرة. للتحكم بها من هنا، يجب تثبيت
+          إضافة صغيرة على WordPress مرة واحدة فقط.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid gap-3">
+          {[
+            {
+              num: "١",
+              text: "حمّل ملف الإضافة (ZIP) بالضغط على الزر أدناه",
+            },
+            {
+              num: "٢",
+              text: 'افتح لوحة WordPress ثم اذهب إلى: الإضافات ← إضافة جديدة ← رفع إضافة',
+            },
+            {
+              num: "٣",
+              text: "ارفع الملف واضغط \"تثبيت الآن\"، ثم \"تفعيل\"",
+            },
+            {
+              num: "٤",
+              text: 'ارجع إلى هذه الصفحة واضغط "تحقق من التثبيت"',
+            },
+          ].map((step) => (
+            <div key={step.num} className="flex items-start gap-3">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-200 font-bold text-sm">
+                {step.num}
+              </span>
+              <p className="text-sm text-amber-800 dark:text-amber-300 pt-1">
+                {step.text}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-3 pt-2">
+          <Button
+            onClick={onDownload}
+            className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+          >
+            <Download className="h-4 w-4" />
+            تحميل إضافة الربط (ZIP)
+          </Button>
+          <Button variant="outline" asChild>
+            <a
+              href="https://xn--traveldsseldorf-5vb.de/wp-admin/plugin-install.php?tab=upload"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="gap-2"
+            >
+              <ExternalLink className="h-4 w-4" />
+              فتح صفحة رفع الإضافات في WordPress
+            </a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LiveSectionsList() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [newSectionName, setNewSectionName] = useState("");
-  const [newSectionLabel, setNewSectionLabel] = useState("");
-  const [isReordering, setIsReordering] = useState(false);
+  const [sections, setSections] = useState<LiveSection[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const { data: sections, isLoading } = useGetSections({
-    query: {
-      queryKey: getGetSectionsQueryKey(),
-      staleTime: 30_000, // 30 ثانية — يمنع إعادة الجلب التلقائي بعد كل عملية
+  const { refetch, isFetching } = useQuery<LiveSection[]>({
+    queryKey: ["live-sections"],
+    queryFn: async () => {
+      const r = await fetch(`${API_BASE}/api/wp/live-sections`);
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message ?? "فشل جلب الأقسام");
+      const arr: LiveSection[] = Array.isArray(data.sections)
+        ? data.sections
+        : DEFAULT_SECTIONS;
+      const sorted = [...arr].sort((a, b) => a.order - b.order);
+      setSections(sorted);
+      setHasLoaded(true);
+      return sorted;
+    },
+    staleTime: 30_000,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async (newSections: LiveSection[]) => {
+      const r = await fetch(`${API_BASE}/api/wp/live-sections`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sections: newSections }),
+      });
+      if (!r.ok) {
+        const data = await r.json();
+        throw new Error(data.message ?? "فشل الحفظ");
+      }
+      return r.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم الحفظ", description: "تم تحديث أقسام الموقع." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
     },
   });
 
-  const updateSection = useUpdateSection();
-  const reorderSections = useReorderSections();
-  const createSection = useCreateSection();
-  const deleteSection = useDeleteSection();
-
-  // Sort once — basis for everything
-  const sortedSections = useMemo(
-    () =>
-      sections
-        ? [...sections].sort((a, b) => a.sortOrder - b.sortOrder)
-        : [],
-    [sections]
-  );
-
-  const doReorder = async (newOrder: typeof sortedSections) => {
-    if (isReordering) return;
-    setIsReordering(true);
-    const orderedIds = newOrder.map((s) => s.id);
-
-    try {
-      const result = await reorderSections.mutateAsync({
-        data: { orderedIds },
-      });
-      // مباشرة نضع نتيجة الـ server في الـ cache
-      queryClient.setQueryData(
-        getGetSectionsQueryKey(),
-        result
-      );
-    } catch {
-      // عند الخطأ: نجلب البيانات من جديد
-      await queryClient.invalidateQueries({
-        queryKey: getGetSectionsQueryKey(),
-      });
-      toast({
-        title: "خطأ",
-        description: "تعذّر تغيير الترتيب.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsReordering(false);
-    }
+  const save = async (next: LiveSection[]) => {
+    setIsSaving(true);
+    setSections(next);
+    await saveMutation.mutateAsync(next);
+    setIsSaving(false);
   };
 
-  const handleMoveUp = (index: number) => {
-    if (index === 0 || isReordering) return;
-    const next = [...sortedSections];
+  const moveUp = (index: number) => {
+    if (index === 0 || isSaving) return;
+    const next = [...sections];
     [next[index - 1], next[index]] = [next[index], next[index - 1]];
-    // ضع الترتيب الجديد في الـ cache فوراً (قبل انتهاء الطلب)
-    queryClient.setQueryData(
-      getGetSectionsQueryKey(),
-      next.map((s, i) => ({ ...s, sortOrder: i }))
-    );
-    doReorder(next);
+    const reordered = next.map((s, i) => ({ ...s, order: i }));
+    save(reordered);
   };
 
-  const handleMoveDown = (index: number) => {
-    if (index === sortedSections.length - 1 || isReordering) return;
-    const next = [...sortedSections];
+  const moveDown = (index: number) => {
+    if (index === sections.length - 1 || isSaving) return;
+    const next = [...sections];
     [next[index], next[index + 1]] = [next[index + 1], next[index]];
-    // ضع الترتيب الجديد في الـ cache فوراً
-    queryClient.setQueryData(
-      getGetSectionsQueryKey(),
-      next.map((s, i) => ({ ...s, sortOrder: i }))
-    );
-    doReorder(next);
+    const reordered = next.map((s, i) => ({ ...s, order: i }));
+    save(reordered);
   };
 
-  const handleToggleVisibility = (id: number, currentVisibility: boolean) => {
-    updateSection.mutate(
-      { id, data: { isVisible: !currentVisibility } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({
-            queryKey: getGetSectionsQueryKey(),
-          });
-          toast({
-            title: "تم التحديث",
-            description: "تم تغيير حالة ظهور القسم.",
-          });
-        },
-      }
+  const toggleVisible = (id: string) => {
+    const next = sections.map((s) =>
+      s.id === id ? { ...s, visible: !s.visible } : s
     );
+    save(next);
   };
 
-  const handleCreateSection = () => {
-    if (!newSectionName || !newSectionLabel) return;
-    createSection.mutate(
-      {
-        data: {
-          name: newSectionName,
-          label: newSectionLabel,
-          isVisible: true,
-          sortOrder: sortedSections.length,
-        },
-      },
-      {
-        onSuccess: () => {
-          setNewSectionName("");
-          setNewSectionLabel("");
-          queryClient.invalidateQueries({
-            queryKey: getGetSectionsQueryKey(),
-          });
-          toast({
-            title: "تمت الإضافة",
-            description: "تمت إضافة القسم الجديد بنجاح.",
-          });
-        },
-      }
-    );
-  };
-
-  const handleDeleteSection = (id: number) => {
-    if (!confirm("هل أنت متأكد من حذف هذا القسم؟")) return;
-    deleteSection.mutate(
-      { id },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({
-            queryKey: getGetSectionsQueryKey(),
-          });
-          toast({
-            title: "تم الحذف",
-            description: "تم حذف القسم بنجاح.",
-          });
-        },
-      }
-    );
-  };
-
-  if (isLoading) {
+  if (!hasLoaded || isFetching) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-[200px]" />
-        <Skeleton className="h-[400px] w-full" />
+      <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        جاري تحميل أقسام الموقع...
       </div>
     );
   }
 
   return (
+    <div className="space-y-2">
+      <div className="flex justify-between items-center mb-4">
+        {isSaving && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            جاري الحفظ على الموقع...
+          </div>
+        )}
+        <div className="flex-1" />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+          تحديث
+        </Button>
+      </div>
+
+      {sections.map((section, index) => (
+        <div
+          key={section.id}
+          className="flex items-center justify-between p-4 border rounded-md bg-card shadow-sm hover:bg-accent/5 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-mono text-muted-foreground w-5 text-center select-none">
+              {index + 1}
+            </span>
+
+            <div className="flex flex-col">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => moveUp(index)}
+                disabled={index === 0 || isSaving}
+              >
+                <ChevronUp className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => moveDown(index)}
+                disabled={index === sections.length - 1 || isSaving}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div>
+              <p className="font-medium">{section.label}</p>
+              <p className="text-xs text-muted-foreground font-mono" dir="ltr">
+                #{section.id}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {section.visible ? (
+              <Eye className="w-4 h-4 text-green-500" />
+            ) : (
+              <EyeOff className="w-4 h-4 text-muted-foreground" />
+            )}
+            <Switch
+              checked={section.visible}
+              onCheckedChange={() => toggleVisible(section.id)}
+              disabled={isSaving}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function SectionsPage() {
+  const { data: bridgeStatus, isLoading: statusLoading, refetch: refetchStatus } =
+    useBridgeStatus();
+  const { toast } = useToast();
+
+  const handleDownload = () => {
+    window.open(`${API_BASE}/api/wp/download-bridge-plugin`, "_blank");
+  };
+
+  const handleCheckInstallation = async () => {
+    const result = await refetchStatus();
+    if (result.data?.installed) {
+      toast({
+        title: "تم التثبيت بنجاح!",
+        description: "إضافة الربط نشطة وجاهزة.",
+      });
+    } else {
+      toast({
+        title: "لم يتم التثبيت بعد",
+        description: "تأكد من رفع الإضافة وتفعيلها في WordPress.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">إدارة الأقسام</h1>
+        <h1 className="text-3xl font-bold tracking-tight">إدارة أقسام الموقع</h1>
         <p className="text-muted-foreground mt-2">
-          تحكم في ترتيب وظهور أقسام الموقع المختلفة.
+          تحكم في ترتيب وظهور أقسام الموقع على{" "}
+          <a
+            href="https://xn--traveldsseldorf-5vb.de"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 text-primary"
+          >
+            traveldüsseldorf.de
+          </a>
+          .
         </p>
       </div>
 
+      {/* Status card */}
       <Card>
-        <CardHeader>
-          <CardTitle>إضافة قسم جديد</CardTitle>
-          <CardDescription>
-            إضافة قسم جديد لترتيبه وعرضه في الموقع.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex gap-4 items-end">
-          <div className="grid gap-2 flex-1">
-            <label className="text-sm font-medium">
-              معرف القسم (بالانجليزية)
-            </label>
-            <Input
-              value={newSectionName}
-              onChange={(e) => setNewSectionName(e.target.value)}
-              placeholder="about, services, contact..."
-              dir="ltr"
-            />
-          </div>
-          <div className="grid gap-2 flex-1">
-            <label className="text-sm font-medium">اسم القسم (للعرض)</label>
-            <Input
-              value={newSectionLabel}
-              onChange={(e) => setNewSectionLabel(e.target.value)}
-              placeholder="من نحن، الخدمات..."
-            />
-          </div>
-          <Button
-            onClick={handleCreateSection}
-            disabled={
-              !newSectionName || !newSectionLabel || createSection.isPending
-            }
-          >
-            <Plus className="w-4 h-4 ml-2" />
-            إضافة
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>ترتيب الأقسام</CardTitle>
-          <CardDescription>
-            استخدم الأسهم لتغيير ترتيب الأقسام، أو فعّل/عطّل ظهورها.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isReordering && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              جاري حفظ الترتيب...
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Globe className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-base">حالة الاتصال بـ WordPress</CardTitle>
             </div>
-          )}
-          <div className="space-y-2">
-            {sortedSections.map((section, index) => (
-              <div
-                key={section.id}
-                className="flex items-center justify-between p-4 border rounded-md bg-card shadow-sm hover:bg-accent/5 transition-colors"
+            {statusLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            ) : bridgeStatus?.installed ? (
+              <Badge
+                variant="outline"
+                className="border-green-500 text-green-600 gap-1"
               >
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-mono text-muted-foreground w-5 text-center select-none">
-                    {index + 1}
-                  </span>
-
-                  <div className="flex flex-col">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => handleMoveUp(index)}
-                      disabled={index === 0 || isReordering}
-                      title="تحريك لأعلى"
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => handleMoveDown(index)}
-                      disabled={
-                        index === sortedSections.length - 1 || isReordering
-                      }
-                      title="تحريك لأسفل"
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <GripVertical className="text-muted-foreground w-5 h-5 opacity-40" />
-
-                  <div>
-                    <p className="font-medium">{section.label}</p>
-                    <p
-                      className="text-xs text-muted-foreground font-mono"
-                      dir="ltr"
-                    >
-                      {section.name}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    {section.isVisible ? (
-                      <Eye className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <EyeOff className="w-4 h-4 text-muted-foreground" />
-                    )}
-                    <Switch
-                      checked={section.isVisible}
-                      onCheckedChange={() =>
-                        handleToggleVisibility(section.id, section.isVisible)
-                      }
-                      disabled={updateSection.isPending}
-                    />
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => handleDeleteSection(section.id)}
-                    disabled={deleteSection.isPending}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-
-            {sortedSections.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                لا توجد أقسام حالياً.
-              </div>
+                <CheckCircle2 className="h-3 w-3" />
+                متصل ومفعّل
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className="border-amber-500 text-amber-600 gap-1"
+              >
+                <AlertCircle className="h-3 w-3" />
+                الإضافة غير مثبتة
+              </Badge>
             )}
           </div>
-        </CardContent>
+        </CardHeader>
+
+        {!statusLoading && !bridgeStatus?.installed && (
+          <CardContent className="pt-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCheckInstallation}
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              تحقق من التثبيت
+            </Button>
+          </CardContent>
+        )}
       </Card>
+
+      {/* Show setup instructions if not installed */}
+      {!statusLoading && !bridgeStatus?.installed && (
+        <SetupInstructions onDownload={handleDownload} />
+      )}
+
+      {/* Show live controls if installed */}
+      {!statusLoading && bridgeStatus?.installed && (
+        <Card>
+          <CardHeader>
+            <CardTitle>ترتيب وظهور الأقسام</CardTitle>
+            <CardDescription>
+              التغييرات تُطبَّق مباشرة على الموقع الحي. استخدم الأسهم لتغيير
+              الترتيب أو فعّل/عطّل ظهور القسم.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <LiveSectionsList />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
