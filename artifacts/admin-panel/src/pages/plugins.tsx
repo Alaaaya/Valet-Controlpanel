@@ -1,4 +1,4 @@
-import { Download, ExternalLink, Puzzle, CheckCircle, Info } from "lucide-react";
+import { Download, ExternalLink, Puzzle, CheckCircle, AlertTriangle } from "lucide-react";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace(/\/[^/]*$/, "");
 
@@ -7,14 +7,16 @@ function PluginCard({
   description,
   version,
   downloadHref,
-  wpAdminUrl,
+  wpAdminPlugins,
+  wpAdminUpload,
   badge,
 }: {
   name: string;
   description: string;
   version: string;
   downloadHref: string;
-  wpAdminUrl: string;
+  wpAdminPlugins: string;
+  wpAdminUpload: string;
   badge?: string;
 }) {
   return (
@@ -38,25 +40,36 @@ function PluginCard({
 
       <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
 
+      <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2">
+        <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+        <div className="text-xs text-red-700 space-y-1">
+          <p className="font-bold">⚠️ مهم جداً: احذف الإصدار القديم أولاً</p>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>
+              افتح{" "}
+              <a href={wpAdminPlugins} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                WordPress ← الإضافات
+              </a>
+            </li>
+            <li>ابحث عن «TVD Admin Bridge» — إذا موجودة: اضغط «إلغاء التفعيل» أولاً</li>
+            <li>ثم اضغط «حذف» لإزالة الملفات القديمة نهائياً</li>
+          </ol>
+        </div>
+      </div>
+
       <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex gap-2">
-        <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
         <div className="text-xs text-blue-700 space-y-1">
-          <p className="font-semibold">طريقة التثبيت:</p>
+          <p className="font-semibold">بعد الحذف — طريقة التثبيت:</p>
           <ol className="list-decimal list-inside space-y-1">
             <li>حمّل ملف الإضافة (الزر أدناه)</li>
             <li>
               افتح{" "}
-              <a
-                href={wpAdminUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline font-medium"
-              >
-                WordPress Admin ← الإضافات ← إضافة جديدة
+              <a href={wpAdminUpload} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                WordPress ← الإضافات ← إضافة جديدة ← رفع إضافة
               </a>
             </li>
-            <li>اضغط «رفع إضافة» واختر الملف المحمَّل</li>
-            <li>اضغط «تثبيت الآن» ثم «تفعيل»</li>
+            <li>اختر الملف المحمَّل واضغط «تثبيت الآن»</li>
+            <li>اضغط «تفعيل الإضافة»</li>
           </ol>
         </div>
       </div>
@@ -68,16 +81,16 @@ function PluginCard({
           className="flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-4 py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors"
         >
           <Download className="w-4 h-4" />
-          تحميل الإضافة
+          تحميل الإضافة v{version}
         </a>
         <a
-          href={wpAdminUrl}
+          href={wpAdminPlugins}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 border border-border rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-muted/50 transition-colors"
         >
           <ExternalLink className="w-4 h-4" />
-          فتح WordPress Admin
+          إدارة الإضافات
         </a>
       </div>
     </div>
@@ -85,7 +98,8 @@ function PluginCard({
 }
 
 export function PluginsPage() {
-  const wpAdmin = "https://xn--traveldsseldorf-5vb.de/wp-admin/plugin-install.php?tab=upload";
+  const wpAdminPlugins = "https://xn--traveldsseldorf-5vb.de/wp-admin/plugins.php";
+  const wpAdminUpload = "https://xn--traveldsseldorf-5vb.de/wp-admin/plugin-install.php?tab=upload";
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -106,16 +120,18 @@ export function PluginsPage() {
         description="ويدجت الحجز الخاص بـ ParkingPro — يتيح لزوار الموقع حجز مواقف السيارات مباشرة من صفحتك. أرسلته لك شركة ParkingPro."
         version="1.2.50"
         downloadHref={`${API_BASE}/api/wp/download-parkingpro-plugin`}
-        wpAdminUrl={wpAdmin}
+        wpAdminPlugins={wpAdminPlugins}
+        wpAdminUpload={wpAdminUpload}
         badge="جاهز للتثبيت"
       />
 
       <PluginCard
         name="TVD Admin Bridge"
-        description="إضافة الربط بين لوحة التحكم والموقع — تتيح إدارة الأقسام وترتيبها وإخفاءها والشعار وقسم ParkingPro من هذه اللوحة مباشرة."
-        version="1.5.0"
+        description="إضافة الربط بين لوحة التحكم والموقع — تتيح إدارة الأقسام وترتيبها وإخفاءها والشعار وقسم ParkingPro وإيميل التأكيد من هذه اللوحة."
+        version="1.9.0"
         downloadHref={`${API_BASE}/api/wp/download-bridge-plugin`}
-        wpAdminUrl={wpAdmin}
+        wpAdminPlugins={wpAdminPlugins}
+        wpAdminUpload={wpAdminUpload}
         badge="⬆ تحديث مطلوب"
       />
     </div>
