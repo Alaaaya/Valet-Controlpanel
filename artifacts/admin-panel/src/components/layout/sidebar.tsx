@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Settings, Layers, Phone, Palette, Plane, Globe, FileText, BookOpen, Puzzle, Car, Image, LogOut, X } from "lucide-react";
+import { LayoutDashboard, Settings, Layers, Phone, Palette, Plane, Globe, FileText, BookOpen, Puzzle, Car, Image, LogOut, X, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -23,6 +23,7 @@ const navigation = [
       { name: "معلومات التواصل", href: "/contact", icon: Phone },
       { name: "ألوان الموقع", href: "/colors", icon: Palette },
       { name: "شعار الموقع", href: "/logo", icon: Image },
+      { name: "إيميل الحجز", href: "/booking-email", icon: Mail },
     ],
   },
 ];
