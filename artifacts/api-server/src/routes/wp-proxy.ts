@@ -205,8 +205,13 @@ router.post("/wp/logo", async (req, res): Promise<void> => {
 
 router.get("/wp/bridge-status", async (req, res): Promise<void> => {
   try {
-    const WP_URL = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
-    const response = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/sections`);
+    const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+    const WP_USER = process.env.WP_USERNAME ?? "";
+    const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
+    const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
+    const response = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/sections`, {
+      headers: { Authorization: `Basic ${token}` },
+    });
     if (response.ok) {
       res.json({ installed: true });
     } else {
