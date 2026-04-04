@@ -11,19 +11,25 @@ type EmailSettings = {
   reply_to: string;
 };
 
+function isValidSettings(data: unknown): data is EmailSettings {
+  if (!data || typeof data !== "object") return false;
+  const d = data as Record<string, unknown>;
+  return typeof d.enabled === "boolean" && typeof d.subject === "string";
+}
+
 export function BookingEmailPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<EmailSettings | null>(null);
 
-  const { isLoading, isError } = useQuery<EmailSettings>({
+  const { isLoading, isError } = useQuery({
     queryKey: ["booking-email"],
     queryFn: async () => {
       const r = await fetch(`${API_BASE}/api/wp/booking-email`);
-      if (!r.ok) throw new Error("فشل تحميل الإعدادات");
       const data = await r.json();
+      if (!r.ok || !isValidSettings(data)) throw new Error("فشل تحميل الإعدادات");
       setForm(data);
-      return data;
+      return data as EmailSettings;
     },
   });
 
@@ -42,7 +48,7 @@ export function BookingEmailPage() {
       toast({ title: "تم الحفظ", description: "تم حفظ إعدادات إيميل الحجز بنجاح" });
     },
     onError: () => {
-      toast({ title: "خطأ", description: "فشل حفظ الإعدادات — تأكد أن البلاجن مثبّت (v1.6.0+)", variant: "destructive" });
+      toast({ title: "خطأ", description: "فشل حفظ الإعدادات — تأكد أن البلاجن v1.7.2 مثبّت", variant: "destructive" });
     },
   });
 
@@ -63,10 +69,10 @@ export function BookingEmailPage() {
         <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-6 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
           <div>
-            <p className="font-semibold text-destructive">البلاجن القديم مثبّت</p>
+            <p className="font-semibold text-destructive">البلاجن غير مثبّت أو قديم</p>
             <p className="text-sm text-muted-foreground mt-1">
-              هذه الميزة تحتاج إلى تحديث البلاجن إلى الإصدار 1.6.0 أو أحدث.
-              حمّل الإصدار الجديد من صفحة الإضافات ثم ثبّته.
+              هذه الميزة تحتاج إلى تثبيت البلاجن الإصدار <strong>v1.7.2</strong>.
+              حمّل الإصدار الجديد ثم ثبّته في WordPress.
             </p>
           </div>
         </div>
@@ -74,7 +80,7 @@ export function BookingEmailPage() {
           href={`${API_BASE}/api/wp/download-bridge-plugin`}
           className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors"
         >
-          <Download className="w-4 h-4" /> تحميل البلاجن v1.6.0
+          <Download className="w-4 h-4" /> تحميل البلاجن v1.7.2
         </a>
       </div>
     );
@@ -104,11 +110,17 @@ export function BookingEmailPage() {
           ✓ Buchung bestätigt! · TVD-XXXXXXXX
         </div>
         <div className="text-xs text-white/60 space-y-1">
-          <div className="flex justify-between"><span>📅 Anreise</span><span>01.06.2025 um 08:00</span></div>
-          <div className="flex justify-between"><span>🛬 Abreise</span><span>08.06.2025 um 20:00</span></div>
-          <div className="flex justify-between"><span>🚗 Parkart</span><span>Parkhaus</span></div>
-          <div className="flex justify-between"><span>💰 Gesamtpreis</span><span className="text-[#c9a84c] font-bold">€84,00</span></div>
+          <div className="flex justify-between"><span>Anreise</span><span>01.06.2025 um 08:00</span></div>
+          <div className="flex justify-between"><span>Abreise</span><span>08.06.2025 um 20:00</span></div>
+          <div className="flex justify-between"><span>Parkart</span><span>Parkhaus</span></div>
+          <div className="flex justify-between"><span>Gesamtpreis</span><span className="text-[#c9a84c] font-bold">€84,00</span></div>
         </div>
+      </div>
+
+      {/* Connected badge */}
+      <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+        <CheckCircle className="w-4 h-4" />
+        البلاجن v1.7.2 متصل ويعمل
       </div>
 
       {/* Settings form */}
@@ -169,17 +181,6 @@ export function BookingEmailPage() {
           {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           حفظ الإعدادات
         </button>
-      </div>
-
-      {/* Plugin update notice */}
-      <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex gap-3">
-        <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-        <div className="text-sm">
-          <p className="font-semibold text-amber-800 dark:text-amber-400">تحديث البلاجن مطلوب</p>
-          <p className="text-amber-700 dark:text-amber-500 mt-0.5">
-            لتفعيل إيميل التأكيد، حمّل البلاجن الجديد (v1.6.0) من صفحة الإضافات ثم ثبّته في WordPress.
-          </p>
-        </div>
       </div>
     </div>
   );
