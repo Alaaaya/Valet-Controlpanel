@@ -142,6 +142,19 @@ router.get("/wp/download-bridge-plugin", (req, res): void => {
   res.download(zipPath, "tvd-admin-bridge.zip");
 });
 
+// ── Transparent Logo Image ────────────────────────────────────────────────────
+
+router.get("/wp/logo-image", (req, res): void => {
+  const imgPath = resolveStatic("logo-transparent.png");
+  if (!fs.existsSync(imgPath)) {
+    res.status(404).json({ error: "Logo image not found" });
+    return;
+  }
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.sendFile(imgPath);
+});
+
 // ── ParkingPro Plugin Download ────────────────────────────────────────────────
 
 router.get("/wp/download-parkingpro-plugin", (req, res): void => {
