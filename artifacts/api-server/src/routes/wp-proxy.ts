@@ -169,6 +169,38 @@ router.post("/wp/parkingpro", async (req, res): Promise<void> => {
   res.json(data);
 });
 
+// ── Logo URL (stored in WordPress options via bridge) ─────────────────────────
+
+router.get("/wp/logo", async (req, res): Promise<void> => {
+  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_USER = process.env.WP_USERNAME ?? "";
+  const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
+  const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
+  try {
+    const r = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/logo`, {
+      headers: { Authorization: `Basic ${token}` },
+    });
+    const data = await r.json();
+    res.json(data);
+  } catch {
+    res.json({ url: "" });
+  }
+});
+
+router.post("/wp/logo", async (req, res): Promise<void> => {
+  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_USER = process.env.WP_USERNAME ?? "";
+  const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
+  const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
+  const r = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/logo`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(req.body),
+  });
+  const data = await r.json();
+  res.json(data);
+});
+
 // ── TVD Admin Bridge: check if plugin is installed ───────────────────────────
 
 router.get("/wp/bridge-status", async (req, res): Promise<void> => {

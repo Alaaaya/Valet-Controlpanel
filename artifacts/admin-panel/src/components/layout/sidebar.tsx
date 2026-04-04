@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Settings, Layers, Phone, Palette, Plane, Globe, FileText, BookOpen, Puzzle, Car } from "lucide-react";
+import { LayoutDashboard, Settings, Layers, Phone, Palette, Plane, Globe, FileText, BookOpen, Puzzle, Car, Image } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -21,6 +21,7 @@ const navigation = [
       { name: "إدارة الأقسام", href: "/sections", icon: Layers },
       { name: "معلومات التواصل", href: "/contact", icon: Phone },
       { name: "ألوان الموقع", href: "/colors", icon: Palette },
+      { name: "شعار الموقع", href: "/logo", icon: Image },
     ],
   },
 ];

@@ -16,6 +16,7 @@ import { WpPagesPage } from "@/pages/wp-pages";
 import { WpPostsPage } from "@/pages/wp-posts";
 import { PluginsPage } from "@/pages/plugins";
 import { ParkingProPage } from "@/pages/parkingpro";
+import { LogoPage } from "@/pages/logo";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ function Router() {
         <Route path="/wp-posts" component={WpPostsPage} />
         <Route path="/plugins" component={PluginsPage} />
         <Route path="/parkingpro" component={ParkingProPage} />
+        <Route path="/logo" component={LogoPage} />
         <Route component={NotFound} />
       </Switch>
     </MainLayout>
