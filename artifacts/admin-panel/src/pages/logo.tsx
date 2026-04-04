@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save, ExternalLink, Image, Loader2, CheckCircle2, Info, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -17,20 +17,24 @@ export function LogoPage() {
   const qc = useQueryClient();
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
-  const { isLoading } = useQuery<{ url: string }>({
+  const { data, isLoading } = useQuery<{ type: string; url: string }>({
     queryKey: ["logo-url"],
     queryFn: () => fetch(`${API_BASE}/api/wp/logo`).then((r) => r.json()),
-    onSuccess: (data) => {
-      if (logoUrl === null) setLogoUrl(data.url ?? "");
-    },
-  } as Parameters<typeof useQuery>[0]);
+    staleTime: 0,
+  });
+
+  useEffect(() => {
+    if (data !== undefined && logoUrl === null) {
+      setLogoUrl(data.url ?? "");
+    }
+  }, [data]);
 
   const saveMutation = useMutation({
     mutationFn: (url: string) =>
       fetch(`${API_BASE}/api/wp/logo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, type: url.trim() ? "url" : "svg" }),
       }).then((r) => r.json()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["logo-url"] });
@@ -91,7 +95,7 @@ export function LogoPage() {
 
         <div className="space-y-2">
           <label className="text-sm font-semibold">رابط الشعار (URL)</label>
-          {isLoading || logoUrl === null ? (
+          {isLoading && logoUrl === null ? (
             <div className="flex items-center justify-center py-6 text-muted-foreground gap-2">
               <Loader2 className="w-4 h-4 animate-spin" />
               جاري التحميل...
@@ -123,7 +127,7 @@ export function LogoPage() {
         <div className="flex gap-3 pt-1">
           <button
             onClick={() => saveMutation.mutate(currentUrl)}
-            disabled={saveMutation.isPending || isLoading || logoUrl === null}
+            disabled={saveMutation.isPending || (isLoading && logoUrl === null)}
             className="flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-5 py-2.5
                        text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
