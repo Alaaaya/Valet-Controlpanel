@@ -155,10 +155,16 @@ function LiveSectionsList() {
       const r = await fetch(`${API_BASE}/api/wp/live-sections`);
       const data = await r.json();
       if (!r.ok) throw new Error(data.message ?? "فشل جلب الأقسام");
-      const arr: LiveSection[] = Array.isArray(data.sections)
+      const fetched: LiveSection[] = Array.isArray(data.sections)
         ? data.sections
         : DEFAULT_SECTIONS;
-      const sorted = [...arr].sort((a, b) => a.order - b.order);
+      // Merge in any DEFAULT_SECTIONS missing from the fetched list
+      const fetchedIds = fetched.map((s) => s.id);
+      const missing = DEFAULT_SECTIONS.filter((d) => !fetchedIds.includes(d.id)).map(
+        (d, i) => ({ ...d, order: fetched.length + i })
+      );
+      const merged = [...fetched, ...missing];
+      const sorted = merged.sort((a, b) => a.order - b.order);
       setSections(sorted);
       setHasLoaded(true);
       return sorted;
