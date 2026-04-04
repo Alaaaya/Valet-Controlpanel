@@ -1,22 +1,48 @@
 import { useMemo, useState } from "react";
-import { useGetSections, getGetSectionsQueryKey, useUpdateSection, useReorderSections, useCreateSection, useDeleteSection } from "@workspace/api-client-react";
+import {
+  useGetSections,
+  getGetSectionsQueryKey,
+  useUpdateSection,
+  useReorderSections,
+  useCreateSection,
+  useDeleteSection,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { GripVertical, Eye, EyeOff, Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import {
+  GripVertical,
+  Eye,
+  EyeOff,
+  Plus,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  Loader2,
+} from "lucide-react";
 
 export function SectionsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [newSectionName, setNewSectionName] = useState("");
   const [newSectionLabel, setNewSectionLabel] = useState("");
+  const [isReordering, setIsReordering] = useState(false);
 
   const { data: sections, isLoading } = useGetSections({
-    query: { queryKey: getGetSectionsQueryKey() },
+    query: {
+      queryKey: getGetSectionsQueryKey(),
+      staleTime: 30_000, // 30 ثانية — يمنع إعادة الجلب التلقائي بعد كل عملية
+    },
   });
 
   const updateSection = useUpdateSection();
@@ -24,64 +50,66 @@ export function SectionsPage() {
   const createSection = useCreateSection();
   const deleteSection = useDeleteSection();
 
-  // ─── SORTED FIRST, before any handlers ───────────────────────────────────
+  // Sort once — basis for everything
   const sortedSections = useMemo(
-    () => (sections ? [...sections].sort((a, b) => a.sortOrder - b.sortOrder) : []),
+    () =>
+      sections
+        ? [...sections].sort((a, b) => a.sortOrder - b.sortOrder)
+        : [],
     [sections]
   );
 
-  // ─── Handlers use sortedSections ─────────────────────────────────────────
+  const doReorder = async (newOrder: typeof sortedSections) => {
+    if (isReordering) return;
+    setIsReordering(true);
+    const orderedIds = newOrder.map((s) => s.id);
+
+    try {
+      const result = await reorderSections.mutateAsync({
+        data: { orderedIds },
+      });
+      // مباشرة نضع نتيجة الـ server في الـ cache
+      queryClient.setQueryData(
+        getGetSectionsQueryKey(),
+        result
+      );
+    } catch {
+      // عند الخطأ: نجلب البيانات من جديد
+      await queryClient.invalidateQueries({
+        queryKey: getGetSectionsQueryKey(),
+      });
+      toast({
+        title: "خطأ",
+        description: "تعذّر تغيير الترتيب.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReordering(false);
+    }
+  };
+
   const handleMoveUp = (index: number) => {
-    if (index === 0) return;
+    if (index === 0 || isReordering) return;
     const next = [...sortedSections];
     [next[index - 1], next[index]] = [next[index], next[index - 1]];
-    const orderedIds = next.map((s) => s.id);
-
-    // Optimistic update so the UI responds immediately
+    // ضع الترتيب الجديد في الـ cache فوراً (قبل انتهاء الطلب)
     queryClient.setQueryData(
       getGetSectionsQueryKey(),
       next.map((s, i) => ({ ...s, sortOrder: i }))
     );
-
-    reorderSections.mutate(
-      { data: { orderedIds } },
-      {
-        onSuccess: (data) => {
-          queryClient.setQueryData(getGetSectionsQueryKey(), data);
-        },
-        onError: () => {
-          // Rollback
-          queryClient.invalidateQueries({ queryKey: getGetSectionsQueryKey() });
-          toast({ title: "خطأ", description: "تعذّر تغيير الترتيب.", variant: "destructive" });
-        },
-      }
-    );
+    doReorder(next);
   };
 
   const handleMoveDown = (index: number) => {
-    if (index === sortedSections.length - 1) return;
+    if (index === sortedSections.length - 1 || isReordering) return;
     const next = [...sortedSections];
     [next[index], next[index + 1]] = [next[index + 1], next[index]];
-    const orderedIds = next.map((s) => s.id);
-
-    // Optimistic update
+    // ضع الترتيب الجديد في الـ cache فوراً
     queryClient.setQueryData(
       getGetSectionsQueryKey(),
       next.map((s, i) => ({ ...s, sortOrder: i }))
     );
-
-    reorderSections.mutate(
-      { data: { orderedIds } },
-      {
-        onSuccess: (data) => {
-          queryClient.setQueryData(getGetSectionsQueryKey(), data);
-        },
-        onError: () => {
-          queryClient.invalidateQueries({ queryKey: getGetSectionsQueryKey() });
-          toast({ title: "خطأ", description: "تعذّر تغيير الترتيب.", variant: "destructive" });
-        },
-      }
-    );
+    doReorder(next);
   };
 
   const handleToggleVisibility = (id: number, currentVisibility: boolean) => {
@@ -89,8 +117,13 @@ export function SectionsPage() {
       { id, data: { isVisible: !currentVisibility } },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetSectionsQueryKey() });
-          toast({ title: "تم التحديث", description: "تم تغيير حالة ظهور القسم." });
+          queryClient.invalidateQueries({
+            queryKey: getGetSectionsQueryKey(),
+          });
+          toast({
+            title: "تم التحديث",
+            description: "تم تغيير حالة ظهور القسم.",
+          });
         },
       }
     );
@@ -98,7 +131,6 @@ export function SectionsPage() {
 
   const handleCreateSection = () => {
     if (!newSectionName || !newSectionLabel) return;
-
     createSection.mutate(
       {
         data: {
@@ -112,8 +144,13 @@ export function SectionsPage() {
         onSuccess: () => {
           setNewSectionName("");
           setNewSectionLabel("");
-          queryClient.invalidateQueries({ queryKey: getGetSectionsQueryKey() });
-          toast({ title: "تمت الإضافة", description: "تمت إضافة القسم الجديد بنجاح." });
+          queryClient.invalidateQueries({
+            queryKey: getGetSectionsQueryKey(),
+          });
+          toast({
+            title: "تمت الإضافة",
+            description: "تمت إضافة القسم الجديد بنجاح.",
+          });
         },
       }
     );
@@ -121,13 +158,17 @@ export function SectionsPage() {
 
   const handleDeleteSection = (id: number) => {
     if (!confirm("هل أنت متأكد من حذف هذا القسم؟")) return;
-
     deleteSection.mutate(
       { id },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetSectionsQueryKey() });
-          toast({ title: "تم الحذف", description: "تم حذف القسم بنجاح." });
+          queryClient.invalidateQueries({
+            queryKey: getGetSectionsQueryKey(),
+          });
+          toast({
+            title: "تم الحذف",
+            description: "تم حذف القسم بنجاح.",
+          });
         },
       }
     );
@@ -154,11 +195,15 @@ export function SectionsPage() {
       <Card>
         <CardHeader>
           <CardTitle>إضافة قسم جديد</CardTitle>
-          <CardDescription>إضافة قسم جديد لترتيبه وعرضه في الموقع.</CardDescription>
+          <CardDescription>
+            إضافة قسم جديد لترتيبه وعرضه في الموقع.
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex gap-4 items-end">
           <div className="grid gap-2 flex-1">
-            <label className="text-sm font-medium">معرف القسم (بالانجليزية)</label>
+            <label className="text-sm font-medium">
+              معرف القسم (بالانجليزية)
+            </label>
             <Input
               value={newSectionName}
               onChange={(e) => setNewSectionName(e.target.value)}
@@ -176,7 +221,9 @@ export function SectionsPage() {
           </div>
           <Button
             onClick={handleCreateSection}
-            disabled={!newSectionName || !newSectionLabel || createSection.isPending}
+            disabled={
+              !newSectionName || !newSectionLabel || createSection.isPending
+            }
           >
             <Plus className="w-4 h-4 ml-2" />
             إضافة
@@ -192,6 +239,12 @@ export function SectionsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {isReordering && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              جاري حفظ الترتيب...
+            </div>
+          )}
           <div className="space-y-2">
             {sortedSections.map((section, index) => (
               <div
@@ -199,19 +252,17 @@ export function SectionsPage() {
                 className="flex items-center justify-between p-4 border rounded-md bg-card shadow-sm hover:bg-accent/5 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  {/* ترتيب رقمي */}
-                  <span className="text-xs font-mono text-muted-foreground w-5 text-center">
+                  <span className="text-xs font-mono text-muted-foreground w-5 text-center select-none">
                     {index + 1}
                   </span>
 
-                  {/* أزرار الأسهم */}
                   <div className="flex flex-col">
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
                       onClick={() => handleMoveUp(index)}
-                      disabled={index === 0 || reorderSections.isPending}
+                      disabled={index === 0 || isReordering}
                       title="تحريك لأعلى"
                     >
                       <ChevronUp className="h-4 w-4" />
@@ -221,7 +272,9 @@ export function SectionsPage() {
                       size="icon"
                       className="h-7 w-7"
                       onClick={() => handleMoveDown(index)}
-                      disabled={index === sortedSections.length - 1 || reorderSections.isPending}
+                      disabled={
+                        index === sortedSections.length - 1 || isReordering
+                      }
                       title="تحريك لأسفل"
                     >
                       <ChevronDown className="h-4 w-4" />
@@ -232,7 +285,10 @@ export function SectionsPage() {
 
                   <div>
                     <p className="font-medium">{section.label}</p>
-                    <p className="text-xs text-muted-foreground font-mono" dir="ltr">
+                    <p
+                      className="text-xs text-muted-foreground font-mono"
+                      dir="ltr"
+                    >
                       {section.name}
                     </p>
                   </div>
@@ -247,7 +303,9 @@ export function SectionsPage() {
                     )}
                     <Switch
                       checked={section.isVisible}
-                      onCheckedChange={() => handleToggleVisibility(section.id, section.isVisible)}
+                      onCheckedChange={() =>
+                        handleToggleVisibility(section.id, section.isVisible)
+                      }
                       disabled={updateSection.isPending}
                     />
                   </div>
@@ -266,7 +324,9 @@ export function SectionsPage() {
             ))}
 
             {sortedSections.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">لا توجد أقسام حالياً.</div>
+              <div className="text-center py-8 text-muted-foreground">
+                لا توجد أقسام حالياً.
+              </div>
             )}
           </div>
         </CardContent>
