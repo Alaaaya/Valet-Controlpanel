@@ -161,7 +161,8 @@ function LiveSectionsList() {
       setHasLoaded(true);
       return sorted;
     },
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const saveMutation = useMutation({
@@ -225,15 +226,20 @@ function LiveSectionsList() {
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center mb-4">
-        {isSaving && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+    <div className="space-y-3">
+      {/* Header row */}
+      <div className="flex justify-between items-center">
+        {isSaving ? (
+          <div className="flex items-center gap-2 text-sm text-amber-600 font-medium">
             <Loader2 className="h-4 w-4 animate-spin" />
             جاري الحفظ على الموقع...
           </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            اضغط <span className="font-bold text-foreground">▲ للأعلى</span> أو{" "}
+            <span className="font-bold text-foreground">▼ للأسفل</span> لتغيير الترتيب
+          </p>
         )}
-        <div className="flex-1" />
         <Button
           variant="outline"
           size="sm"
@@ -249,53 +255,62 @@ function LiveSectionsList() {
       {sections.map((section, index) => (
         <div
           key={section.id}
-          className="flex items-center justify-between p-4 border rounded-md bg-card shadow-sm hover:bg-accent/5 transition-colors"
+          className={`border rounded-xl bg-card shadow-sm transition-all ${
+            isSaving ? "opacity-60 pointer-events-none" : ""
+          }`}
         >
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-mono text-muted-foreground w-5 text-center select-none">
+          {/* Main row */}
+          <div className="flex items-center gap-3 px-4 py-3">
+            {/* Position badge */}
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold text-muted-foreground">
               {index + 1}
             </span>
 
-            <div className="flex flex-col">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => moveUp(index)}
-                disabled={index === 0 || isSaving}
-              >
-                <ChevronUp className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => moveDown(index)}
-                disabled={index === sections.length - 1 || isSaving}
-              >
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div>
-              <p className="font-medium">{section.label}</p>
-              <p className="text-xs text-muted-foreground font-mono" dir="ltr">
+            {/* Section name */}
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-base leading-tight">{section.label}</p>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5" dir="ltr">
                 #{section.id}
               </p>
             </div>
+
+            {/* Visibility toggle */}
+            <div className="flex items-center gap-2 shrink-0">
+              {section.visible ? (
+                <span className="text-xs text-green-600 font-medium">ظاهر</span>
+              ) : (
+                <span className="text-xs text-muted-foreground font-medium">مخفي</span>
+              )}
+              <Switch
+                checked={section.visible}
+                onCheckedChange={() => toggleVisible(section.id)}
+                disabled={isSaving}
+              />
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {section.visible ? (
-              <Eye className="w-4 h-4 text-green-500" />
-            ) : (
-              <EyeOff className="w-4 h-4 text-muted-foreground" />
-            )}
-            <Switch
-              checked={section.visible}
-              onCheckedChange={() => toggleVisible(section.id)}
-              disabled={isSaving}
-            />
+          {/* Move buttons row */}
+          <div className="flex border-t divide-x divide-x-reverse">
+            <Button
+              variant="ghost"
+              className="flex-1 rounded-none rounded-br-xl h-10 gap-2 text-sm font-medium
+                         disabled:opacity-30"
+              onClick={() => moveUp(index)}
+              disabled={index === 0 || isSaving}
+            >
+              <ChevronUp className="h-4 w-4" />
+              تحريك للأعلى
+            </Button>
+            <Button
+              variant="ghost"
+              className="flex-1 rounded-none rounded-bl-xl h-10 gap-2 text-sm font-medium
+                         disabled:opacity-30"
+              onClick={() => moveDown(index)}
+              disabled={index === sections.length - 1 || isSaving}
+            >
+              <ChevronDown className="h-4 w-4" />
+              تحريك للأسفل
+            </Button>
           </div>
         </div>
       ))}
