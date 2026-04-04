@@ -1,11 +1,14 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import { MainLayout } from "@/components/layout/main-layout";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 
+import { LoginPage } from "@/pages/login";
 import { DashboardPage } from "@/pages/dashboard";
 import { SettingsPage } from "@/pages/settings";
 import { SectionsPage } from "@/pages/sections";
@@ -20,7 +23,21 @@ import { LogoPage } from "@/pages/logo";
 
 const queryClient = new QueryClient();
 
-function Router() {
+function ProtectedRouter() {
+  const { token, isChecking } = useAuth();
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!token) {
+    return <LoginPage />;
+  }
+
   return (
     <MainLayout>
       <Switch>
@@ -50,9 +67,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
+        <AuthProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <ProtectedRouter />
+          </WouterRouter>
+        </AuthProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Settings, Layers, Phone, Palette, Plane, Globe, FileText, BookOpen, Puzzle, Car, Image } from "lucide-react";
+import { LayoutDashboard, Settings, Layers, Phone, Palette, Plane, Globe, FileText, BookOpen, Puzzle, Car, Image, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 const navigation = [
   { name: "لوحة القيادة", href: "/", icon: LayoutDashboard },
@@ -54,6 +55,7 @@ function NavLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 
 export function Sidebar() {
   const [location] = useLocation();
+  const { username, logout } = useAuth();
 
   return (
     <div className="w-64 bg-sidebar text-sidebar-foreground border-l border-sidebar-border min-h-screen flex flex-col shadow-lg shadow-sidebar/20">
@@ -91,8 +93,18 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="p-4 border-t border-sidebar-border text-xs text-sidebar-foreground/40 text-center">
-        لوحة تحكم Travel Valet
+      <div className="p-3 border-t border-sidebar-border space-y-1">
+        {username && (
+          <p className="px-3 text-xs text-sidebar-foreground/40 truncate">{username}</p>
+        )}
+        <button
+          onClick={logout}
+          className="w-full flex items-center px-3 py-2 rounded-md text-sm font-medium
+                     text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+        >
+          <LogOut className="w-4 h-4 ml-3" />
+          تسجيل الخروج
+        </button>
       </div>
     </div>
   );
