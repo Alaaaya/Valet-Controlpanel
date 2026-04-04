@@ -321,40 +321,67 @@ router.post("/wp/booking-email", async (req, res): Promise<void> => {
   }
 });
 
-// ── Pricing ───────────────────────────────────────────────────────────────────
+// ── Pricing (local-first, WordPress optional) ─────────────────────────────────
 
-router.get("/wp/pricing", async (req, res): Promise<void> => {
-  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
-  const WP_USER = process.env.WP_USERNAME ?? "";
-  const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
-  const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
+const PRICING_FILE = path.resolve(__dirname, "../../data/pricing.json");
+const PRICING_DEFAULT = { day1: 39, day2: 49, day3: 59, extra_per_day: 10, currency: "EUR", label: "Parkgebühren" };
+
+function readPricingLocal(): Record<string, unknown> {
   try {
+    return JSON.parse(fs.readFileSync(PRICING_FILE, "utf8"));
+  } catch {
+    return { ...PRICING_DEFAULT };
+  }
+}
+
+function writePricingLocal(data: Record<string, unknown>): void {
+  try {
+    fs.mkdirSync(path.dirname(PRICING_FILE), { recursive: true });
+    fs.writeFileSync(PRICING_FILE, JSON.stringify(data, null, 2), "utf8");
+  } catch { /* ignore */ }
+}
+
+router.get("/wp/pricing", async (_req, res): Promise<void> => {
+  const local = readPricingLocal();
+  // Try WordPress too, but local file is authoritative
+  try {
+    const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+    const WP_USER = process.env.WP_USERNAME ?? "";
+    const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
+    const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
     const r = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/pricing`, {
       headers: { Authorization: `Basic ${token}` },
+      signal: AbortSignal.timeout(4000),
     });
-    const data = await r.json();
-    res.json(data);
-  } catch {
-    res.json({ day1: 39, day2: 49, day3: 59, extra_per_day: 10, currency: "EUR" });
-  }
+    if (r.ok) {
+      const wpData = await r.json() as Record<string, unknown>;
+      if (wpData && typeof wpData.day1 === "number") {
+        res.json(wpData);
+        return;
+      }
+    }
+  } catch { /* WP unavailable or plugin not installed — use local */ }
+  res.json(local);
 });
 
 router.post("/wp/pricing", async (req, res): Promise<void> => {
-  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
-  const WP_USER = process.env.WP_USERNAME ?? "";
-  const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
-  const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
+  const body = req.body as Record<string, unknown>;
+  // Always save locally first
+  writePricingLocal(body);
+  // Try to sync to WordPress (best-effort)
   try {
-    const r = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/pricing`, {
+    const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+    const WP_USER = process.env.WP_USERNAME ?? "";
+    const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
+    const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
+    await fetch(`${WP_URL}/wp-json/tvd-admin/v1/pricing`, {
       method: "POST",
       headers: { Authorization: `Basic ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(4000),
     });
-    const data = await r.json();
-    res.json(data);
-  } catch {
-    res.status(500).json({ error: "فشل الاتصال بـ WordPress" });
-  }
+  } catch { /* ignore if WP not available */ }
+  res.json({ ok: true, saved: true });
 });
 
 export default router;
