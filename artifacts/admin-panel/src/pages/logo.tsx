@@ -86,11 +86,16 @@ export function LogoPage() {
       <div className="bg-card border border-border rounded-xl p-6 space-y-4">
         <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex gap-2">
           <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
-          <p className="text-xs text-blue-700">
-            ارفع صورة الشعار على أي خدمة مثل{" "}
-            <a href="https://imgur.com/upload" target="_blank" rel="noopener noreferrer" className="underline font-medium">imgur.com</a>
-            {" "}أو مكتبة الوسائط في WordPress، ثم الصق رابط الصورة هنا.
-          </p>
+          <div className="text-xs text-blue-700 space-y-1">
+            <p>
+              ارفع صورة الشعار على{" "}
+              <a href="https://imgur.com/upload" target="_blank" rel="noopener noreferrer" className="underline font-medium">imgur.com</a>
+              {" "}أو مكتبة الوسائط في WordPress، ثم الصق رابط الصورة المباشر هنا.
+            </p>
+            <p className="text-orange-600 font-medium">
+              ⚠️ تأكد أن الرابط رابط صورة مباشر يبدأ بـ <span dir="ltr" className="font-mono">i.imgur.com</span> وينتهي بـ <span dir="ltr" className="font-mono">.jpg</span> أو <span dir="ltr" className="font-mono">.png</span> — وليس رابط ألبوم مثل <span dir="ltr" className="font-mono">imgur.com/a/...</span>
+            </p>
+          </div>
         </div>
 
         <div className="space-y-2">
