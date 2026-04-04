@@ -14,6 +14,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/contact": "معلومات التواصل",
   "/colors": "ألوان الموقع",
   "/logo": "شعار الموقع",
+  "/pricing": "جدول الأسعار",
   "/booking-email": "إيميل الحجز",
   "/wp-settings": "إعدادات WordPress",
   "/wp-pages": "صفحات الموقع",

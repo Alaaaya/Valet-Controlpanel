@@ -21,6 +21,7 @@ import { PluginsPage } from "@/pages/plugins";
 import { ParkingProPage } from "@/pages/parkingpro";
 import { LogoPage } from "@/pages/logo";
 import { BookingEmailPage } from "@/pages/booking-email";
+import { PricingPage } from "@/pages/pricing";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +54,7 @@ function ProtectedRouter() {
         <Route path="/plugins" component={PluginsPage} />
         <Route path="/parkingpro" component={ParkingProPage} />
         <Route path="/logo" component={LogoPage} />
+        <Route path="/pricing" component={PricingPage} />
         <Route path="/booking-email" component={BookingEmailPage} />
         <Route component={NotFound} />
       </Switch>

@@ -321,4 +321,40 @@ router.post("/wp/booking-email", async (req, res): Promise<void> => {
   }
 });
 
+// ── Pricing ───────────────────────────────────────────────────────────────────
+
+router.get("/wp/pricing", async (req, res): Promise<void> => {
+  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_USER = process.env.WP_USERNAME ?? "";
+  const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
+  const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
+  try {
+    const r = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/pricing`, {
+      headers: { Authorization: `Basic ${token}` },
+    });
+    const data = await r.json();
+    res.json(data);
+  } catch {
+    res.json({ day1: 39, day2: 49, day3: 59, extra_per_day: 10, currency: "EUR" });
+  }
+});
+
+router.post("/wp/pricing", async (req, res): Promise<void> => {
+  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_USER = process.env.WP_USERNAME ?? "";
+  const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
+  const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
+  try {
+    const r = await fetch(`${WP_URL}/wp-json/tvd-admin/v1/pricing`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+    });
+    const data = await r.json();
+    res.json(data);
+  } catch {
+    res.status(500).json({ error: "فشل الاتصال بـ WordPress" });
+  }
+});
+
 export default router;
