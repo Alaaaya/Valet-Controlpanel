@@ -112,10 +112,11 @@ export function PluginsPage() {
 
       <PluginCard
         name="TVD Admin Bridge"
-        description="إضافة الربط بين لوحة التحكم والموقع — تتيح إدارة الأقسام وترتيبها وإخفاءها من هذه اللوحة مباشرة."
-        version="1.3.0"
+        description="إضافة الربط بين لوحة التحكم والموقع — تتيح إدارة الأقسام وترتيبها وإخفاءها والشعار وقسم ParkingPro من هذه اللوحة مباشرة."
+        version="1.5.0"
         downloadHref={`${API_BASE}/api/wp/download-bridge-plugin`}
         wpAdminUrl={wpAdmin}
+        badge="⬆ تحديث مطلوب"
       />
     </div>
   );
