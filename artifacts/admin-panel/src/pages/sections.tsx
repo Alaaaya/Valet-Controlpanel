@@ -376,19 +376,30 @@ export function SectionsPage() {
           </div>
         </CardHeader>
 
-        {!statusLoading && !bridgeStatus?.installed && (
-          <CardContent className="pt-0">
+        <CardContent className="pt-0">
+          <div className="flex flex-wrap items-center gap-3">
+            {!statusLoading && !bridgeStatus?.installed && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCheckInstallation}
+                className="gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                تحقق من التثبيت
+              </Button>
+            )}
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={handleCheckInstallation}
-              className="gap-2"
+              onClick={handleDownload}
+              className="gap-2 text-muted-foreground hover:text-foreground"
             >
-              <RefreshCw className="h-4 w-4" />
-              تحقق من التثبيت
+              <Download className="h-4 w-4" />
+              {bridgeStatus?.installed ? "تحميل آخر إصدار من الإضافة" : "تحميل الإضافة (ZIP)"}
             </Button>
-          </CardContent>
-        )}
+          </div>
+        </CardContent>
       </Card>
 
       {/* Show setup instructions if not installed */}
