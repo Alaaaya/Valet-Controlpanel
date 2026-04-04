@@ -1,8 +1,8 @@
 {
-  "day1": 45,
-  "day2": 55,
-  "day3": 65,
-  "extra_per_day": 12,
+  "day1": 39,
+  "day2": 49,
+  "day3": 59,
+  "extra_per_day": 10,
   "currency": "EUR",
   "label": "Parkgebühren"
 }
