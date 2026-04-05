@@ -364,36 +364,52 @@ function buildInlinePricePatch(prices: Record<string, number>): string {
   // which atob can handle (pure ASCII). The browser then evaluates '\\u20ac' as the € char.
   const js = `(function(){
 var PF=${PF},PP=${PP},PRA=${PRA},PRI=${PRI};
-/* Fix price labels on page load */
+var myPa='',myRA=false,myRI=false;
+/* ---- helpers ---- */
+function days(){var a=document.getElementById('tvd_anreise'),b=document.getElementById('tvd_abreise');if(!a||!b||!a.value||!b.value)return 0;var d=(new Date(b.value)-new Date(a.value))/86400000;return d>0?Math.round(d):0;}
+function total(){var pd=myPa==='parkhaus'?PP:(myPa?PF:0);return(days()*pd+(myRA?PRA:0)+(myRI?PRI:0))/100;}
+function setDisp(el,val){if(el&&el.textContent!==val)el.textContent=val;}
+function updateDisp(){setDisp(document.getElementById('tvd_price_display'),total().toFixed(2));setDisp(document.getElementById('tvd_days_display'),String(days()));}
+/* ---- fix button labels once on load ---- */
 document.querySelectorAll('.tvd-parkart-opt').forEach(function(el){
-  var spans=el.querySelectorAll('span');
-  spans.forEach(function(sp){
+  el.querySelectorAll('span').forEach(function(sp){
     if(sp.textContent&&sp.textContent.indexOf('/Tag')>-1){
       var val=el.dataset.val||'';
       sp.textContent='\\u20ac'+((val==='parkhaus'?PP:PF)/100)+'/Tag';
     }
   });
 });
-/* Fix price in AJAX submission and confirmation email */
+/* ---- track state + update display on interaction ---- */
+document.querySelectorAll('.tvd-parkart-opt').forEach(function(el){
+  el.addEventListener('click',function(){myPa=el.dataset.val||'';setTimeout(updateDisp,0);},true);
+});
+document.querySelectorAll('.tvd-rein-opt').forEach(function(el){
+  el.addEventListener('click',function(){
+    var cb=el.querySelector('input[type=checkbox]');
+    setTimeout(function(){
+      if(el.dataset.val==='aussen')myRA=!!(cb&&cb.checked);
+      else myRI=!!(cb&&cb.checked);
+      updateDisp();
+    },0);
+  },true);
+});
+var keine=document.querySelector('.tvd-keine-rein');
+if(keine)keine.addEventListener('click',function(){myRA=false;myRI=false;setTimeout(updateDisp,0);},true);
+['tvd_anreise','tvd_abreise'].forEach(function(id){
+  var el=document.getElementById(id);
+  if(el)el.addEventListener('change',function(){setTimeout(updateDisp,0);});
+});
+/* ---- fix submitted price ---- */
 var origFetch=window.fetch;
 window.fetch=function(url,opts){
   if(opts&&opts.body instanceof FormData){
     try{
       if(opts.body.get('action')==='tvd_pl_submit_booking'){
-        var pi=document.querySelector('.tvd-parkart-opt input:checked');
-        var pa=pi?pi.value:'';
-        var ra=document.querySelector('.tvd-rein-opt[data-val=aussen] input');
-        var ri=document.querySelector('.tvd-rein-opt[data-val=innen] input');
-        var a=document.getElementById('tvd_anreise');
-        var b=document.getElementById('tvd_abreise');
-        var days=0;
-        if(a&&b&&a.value&&b.value){var dd=(new Date(b.value)-new Date(a.value))/86400000;days=dd>0?Math.round(dd):0;}
-        var pd=pa==='parkhaus'?PP:(pa?PF:0);
-        var tot=(days*pd+((ra&&ra.checked)?PRA:0)+((ri&&ri.checked)?PRI:0))/100;
+        var d=days(),tot=total();
         var nfd=new FormData();
         opts.body.forEach(function(v,k){
           if(k==='price')nfd.append('price',tot.toFixed(2));
-          else if(k==='days')nfd.append('days',String(days));
+          else if(k==='days')nfd.append('days',String(d));
           else nfd.append(k,v);
         });
         opts.body=nfd;
@@ -402,7 +418,7 @@ window.fetch=function(url,opts){
   }
   return origFetch.apply(this,arguments);
 };
-console.log('[TVD v4] PF='+(PF/100)+' PP='+(PP/100));
+console.log('[TVD v5] PF='+(PF/100)+' PP='+(PP/100));
 })();`;
 
   const b64 = Buffer.from(js).toString("base64");
