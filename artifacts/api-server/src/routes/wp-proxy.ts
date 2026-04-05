@@ -339,14 +339,25 @@ router.post("/wp/booking-email", async (req, res): Promise<void> => {
   }
 });
 
-// ── Booking Prices (control €12/€15 etc. in the live booking form) ───────────
+// ── Booking Prices (tiered daily rates for the live booking form) ─────────────
 
-const BP_DEFAULT = { freiflaeche: 1200, parkhaus: 1500, reinigung_aussen: 4000, reinigung_innen: 7000 };
+const BP_DEFAULT = {
+  freiflaeche_d1: 1200, freiflaeche_d2: 1200, freiflaeche_d3: 1200,
+  parkhaus_d1: 1500, parkhaus_d2: 1500, parkhaus_d3: 1500,
+  reinigung_aussen: 4000, reinigung_innen: 7000,
+};
 const BP_FILE = path.resolve(__dirname, "../../data/booking-prices.json");
 
 function readBpLocal(): Record<string, number> {
-  try { return { ...BP_DEFAULT, ...JSON.parse(fs.readFileSync(BP_FILE, "utf8")) }; }
-  catch { return { ...BP_DEFAULT }; }
+  try {
+    const raw = JSON.parse(fs.readFileSync(BP_FILE, "utf8")) as Record<string, number>;
+    // Back-compat: if old flat format, migrate to tiered
+    if (raw.freiflaeche && !raw.freiflaeche_d1) {
+      raw.freiflaeche_d1 = raw.freiflaeche_d2 = raw.freiflaeche_d3 = raw.freiflaeche;
+      raw.parkhaus_d1 = raw.parkhaus_d2 = raw.parkhaus_d3 = raw.parkhaus;
+    }
+    return { ...BP_DEFAULT, ...raw };
+  } catch { return { ...BP_DEFAULT }; }
 }
 function writeBpLocal(d: Record<string, unknown>): void {
   try { fs.mkdirSync(path.dirname(BP_FILE), { recursive: true }); fs.writeFileSync(BP_FILE, JSON.stringify(d, null, 2), "utf8"); }
@@ -354,28 +365,36 @@ function writeBpLocal(d: Record<string, unknown>): void {
 }
 
 // Build the inline price-patch JS (embedded in base64 to avoid quote escaping issues)
+// Tiered pricing: day1 rate, day2 rate, day3+ rate per parking type
 function buildInlinePricePatch(prices: Record<string, number>): string {
-  const PF  = Number(prices.freiflaeche)     || 1200;
-  const PP  = Number(prices.parkhaus)         || 1500;
-  const PRA = Number(prices.reinigung_aussen) || 4000;
-  const PRI = Number(prices.reinigung_innen)  || 7000;
+  const FFD1 = Number(prices.freiflaeche_d1) || 1200;
+  const FFD2 = Number(prices.freiflaeche_d2) || FFD1;
+  const FFD3 = Number(prices.freiflaeche_d3) || FFD1;
+  const PHD1 = Number(prices.parkhaus_d1)    || 1500;
+  const PHD2 = Number(prices.parkhaus_d2)    || PHD1;
+  const PHD3 = Number(prices.parkhaus_d3)    || PHD1;
+  const PRA  = Number(prices.reinigung_aussen) || 4000;
+  const PRI  = Number(prices.reinigung_innen)  || 7000;
 
-  // NOTE: use \\u20ac so the template literal produces the literal 6-char escape \\u20ac
-  // which atob can handle (pure ASCII). The browser then evaluates '\\u20ac' as the € char.
+  // NOTE: use \\u20ac so the template literal produces the literal ASCII escape \\u20ac
+  // which atob handles correctly. The browser evaluates '\\u20ac' as the € char.
   const js = `(function(){
-var PF=${PF},PP=${PP},PRA=${PRA},PRI=${PRI};
+var FFD1=${FFD1},FFD2=${FFD2},FFD3=${FFD3};
+var PHD1=${PHD1},PHD2=${PHD2},PHD3=${PHD3};
+var PRA=${PRA},PRI=${PRI};
 var myPa='',myRA=false,myRI=false;
 /* ---- helpers ---- */
 function days(){var a=document.getElementById('tvd_anreise'),b=document.getElementById('tvd_abreise');if(!a||!b||!a.value||!b.value)return 0;var d=(new Date(b.value)-new Date(a.value))/86400000;return d>0?Math.round(d):0;}
-function total(){var pd=myPa==='parkhaus'?PP:(myPa?PF:0);return(days()*pd+(myRA?PRA:0)+(myRI?PRI:0))/100;}
+function tiered(n,d1,d2,d3){if(n<=0)return 0;if(n===1)return d1;if(n===2)return d1+d2;return d1+d2+(n-2)*d3;}
+function total(){var d=days();var pt=myPa==='parkhaus'?tiered(d,PHD1,PHD2,PHD3):(myPa?tiered(d,FFD1,FFD2,FFD3):0);return(pt+(myRA?PRA:0)+(myRI?PRI:0))/100;}
 function setDisp(el,val){if(el&&el.textContent!==val)el.textContent=val;}
 function updateDisp(){setDisp(document.getElementById('tvd_price_display'),total().toFixed(2));setDisp(document.getElementById('tvd_days_display'),String(days()));}
-/* ---- fix button labels once on load ---- */
+/* ---- fix button labels (show day-1 rate) ---- */
 document.querySelectorAll('.tvd-parkart-opt').forEach(function(el){
   el.querySelectorAll('span').forEach(function(sp){
     if(sp.textContent&&sp.textContent.indexOf('/Tag')>-1){
       var val=el.dataset.val||'';
-      sp.textContent='\\u20ac'+((val==='parkhaus'?PP:PF)/100)+'/Tag';
+      sp.textContent='\\u20ac'+((val==='parkhaus'?PHD1:FFD1)/100)+'/Tag';
     }
   });
 });
@@ -399,7 +418,7 @@ if(keine)keine.addEventListener('click',function(){myRA=false;myRI=false;setTime
   var el=document.getElementById(id);
   if(el)el.addEventListener('change',function(){setTimeout(updateDisp,0);});
 });
-/* ---- fix submitted price ---- */
+/* ---- fix submitted price with tiered total ---- */
 var origFetch=window.fetch;
 window.fetch=function(url,opts){
   if(opts&&opts.body instanceof FormData){
@@ -418,7 +437,7 @@ window.fetch=function(url,opts){
   }
   return origFetch.apply(this,arguments);
 };
-console.log('[TVD v5] PF='+(PF/100)+' PP='+(PP/100));
+console.log('[TVD v6] FFD1='+(FFD1/100)+' FFD2='+(FFD2/100)+' FFD3='+(FFD3/100));
 })();`;
 
   const b64 = Buffer.from(js).toString("base64");

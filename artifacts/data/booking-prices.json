@@ -1,6 +1,10 @@
 {
-  "freiflaeche": 1200,
-  "parkhaus": 1500,
+  "freiflaeche_d1": 1200,
+  "freiflaeche_d2": 1200,
+  "freiflaeche_d3": 1200,
+  "parkhaus_d1": 1500,
+  "parkhaus_d2": 1500,
+  "parkhaus_d3": 1500,
   "reinigung_aussen": 4000,
   "reinigung_innen": 7000
 }

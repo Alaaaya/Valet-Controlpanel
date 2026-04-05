@@ -4,20 +4,28 @@ import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Euro, Save, Loader2, CheckCircle2, RefreshCw, Car, Building2, Sparkles, Info } from "lucide-react";
+import { Euro, Save, Loader2, CheckCircle2, RefreshCw, Car, Building2, Sparkles, Info, CalendarDays } from "lucide-react";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace(/\/[^/]*$/, "");
 
 interface BookingPrices {
-  freiflaeche: number;
-  parkhaus: number;
+  freiflaeche_d1: number;
+  freiflaeche_d2: number;
+  freiflaeche_d3: number;
+  parkhaus_d1: number;
+  parkhaus_d2: number;
+  parkhaus_d3: number;
   reinigung_aussen: number;
   reinigung_innen: number;
 }
 
 const DEFAULTS: BookingPrices = {
-  freiflaeche: 1200,
-  parkhaus: 1500,
+  freiflaeche_d1: 1200,
+  freiflaeche_d2: 1200,
+  freiflaeche_d3: 1200,
+  parkhaus_d1: 1500,
+  parkhaus_d2: 1500,
+  parkhaus_d3: 1500,
   reinigung_aussen: 4000,
   reinigung_innen: 7000,
 };
@@ -29,48 +37,101 @@ function eurToCents(eur: number) {
   return Math.round(eur * 100);
 }
 
-interface PriceCardProps {
+function calcTotal(days: number, d1: number, d2: number, d3: number): number {
+  if (days <= 0) return 0;
+  if (days === 1) return d1;
+  if (days === 2) return d1 + d2;
+  return d1 + d2 + (days - 2) * d3;
+}
+
+interface DayPriceRowProps {
+  label: string;
+  valueEur: number;
+  onChange: (eur: number) => void;
+  dayLabel: string;
+  color?: string;
+}
+
+function DayPriceRow({ label, valueEur, onChange, dayLabel, color = "text-primary" }: DayPriceRowProps) {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-card hover:bg-muted/20 transition-colors">
+      <div className={`text-xs font-semibold ${color} w-24 shrink-0 text-right`}>{dayLabel}</div>
+      <div className="flex-1 text-xs text-muted-foreground truncate">{label}</div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span className="text-sm font-bold text-primary">€</span>
+        <input
+          type="number"
+          min={1}
+          max={999}
+          value={valueEur}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            if (!isNaN(v) && v >= 1 && v <= 999) onChange(v);
+          }}
+          className="w-16 text-center rounded-lg border border-border bg-background px-2 py-1
+                     text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40
+                     [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none
+                     [&::-webkit-inner-spin-button]:appearance-none"
+        />
+        <span className="text-xs text-muted-foreground w-8">/يوم</span>
+      </div>
+    </div>
+  );
+}
+
+interface CleanPriceRowProps {
   icon: React.ReactNode;
   title: string;
   subtitle: string;
   valueEur: number;
   onChange: (eur: number) => void;
-  min?: number;
-  max?: number;
-  suffix?: string;
-  color?: string;
 }
 
-function PriceCard({ icon, title, subtitle, valueEur, onChange, min = 1, max = 500, suffix = "/Tag", color = "text-primary" }: PriceCardProps) {
+function CleanPriceRow({ icon, title, subtitle, valueEur, onChange }: CleanPriceRowProps) {
   return (
     <div className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors">
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-primary/10 ${color} shrink-0`}>
+      <div className="w-9 h-9 rounded-full flex items-center justify-center bg-amber-100 dark:bg-amber-900/30 text-amber-600 shrink-0">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm">{title}</p>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1.5 shrink-0">
         <span className="text-lg font-bold text-primary">€</span>
         <input
           type="number"
-          min={min}
-          max={max}
+          min={0}
+          max={999}
           value={valueEur}
           onChange={(e) => {
             const v = Number(e.target.value);
-            if (!isNaN(v) && v >= min && v <= max) onChange(v);
+            if (!isNaN(v) && v >= 0 && v <= 999) onChange(v);
           }}
-          className="w-20 text-center rounded-lg border border-border bg-background px-2 py-1.5
-                     text-base font-bold focus:outline-none focus:ring-2 focus:ring-primary/40
+          className="w-16 text-center rounded-lg border border-border bg-background px-2 py-1.5
+                     text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40
                      [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none
                      [&::-webkit-inner-spin-button]:appearance-none"
         />
-        <span className="text-xs text-muted-foreground w-10">{suffix}</span>
+        <span className="text-xs text-muted-foreground w-12">(ثابت)</span>
       </div>
     </div>
   );
+}
+
+function normalizePrices(raw: Record<string, number>): BookingPrices {
+  const ff = raw.freiflaeche ?? DEFAULTS.freiflaeche_d1;
+  const ph = raw.parkhaus ?? DEFAULTS.parkhaus_d1;
+  return {
+    freiflaeche_d1: raw.freiflaeche_d1 ?? ff,
+    freiflaeche_d2: raw.freiflaeche_d2 ?? ff,
+    freiflaeche_d3: raw.freiflaeche_d3 ?? ff,
+    parkhaus_d1: raw.parkhaus_d1 ?? ph,
+    parkhaus_d2: raw.parkhaus_d2 ?? ph,
+    parkhaus_d3: raw.parkhaus_d3 ?? ph,
+    reinigung_aussen: raw.reinigung_aussen ?? DEFAULTS.reinigung_aussen,
+    reinigung_innen: raw.reinigung_innen ?? DEFAULTS.reinigung_innen,
+  };
 }
 
 export function PricingPage() {
@@ -78,7 +139,7 @@ export function PricingPage() {
   const qc = useQueryClient();
   const [prices, setPrices] = useState<BookingPrices | null>(null);
 
-  const { data, isLoading, refetch } = useQuery<BookingPrices>({
+  const { data, isLoading, refetch } = useQuery<Record<string, number>>({
     queryKey: ["booking-prices"],
     queryFn: () => fetch(`${API_BASE}/api/wp/booking-prices`).then((r) => r.json()),
     staleTime: 0,
@@ -86,7 +147,7 @@ export function PricingPage() {
 
   useEffect(() => {
     if (data && prices === null) {
-      setPrices({ ...DEFAULTS, ...data });
+      setPrices(normalizePrices(data));
     }
   }, [data]);
 
@@ -111,10 +172,8 @@ export function PricingPage() {
   const setField = (field: keyof BookingPrices) => (eur: number) =>
     setPrices((prev) => ({ ...(prev ?? DEFAULTS), [field]: eurToCents(eur) }));
 
-  const totalDays = (days: number) => {
-    const rate = p.freiflaeche;
-    return ((days * rate) / 100).toFixed(2);
-  };
+  const ffD1 = p.freiflaeche_d1, ffD2 = p.freiflaeche_d2, ffD3 = p.freiflaeche_d3;
+  const phD1 = p.parkhaus_d1, phD2 = p.parkhaus_d2, phD3 = p.parkhaus_d3;
 
   return (
     <div className="space-y-6">
@@ -133,116 +192,158 @@ export function PricingPage() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Price Controls */}
+        {/* Freifläche */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Euro className="w-5 h-5 text-primary" />
-              أسعار مواقف الانتظار
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Car className="w-5 h-5 text-primary" />
+              Freifläche
             </CardTitle>
-            <CardDescription>السعر بالأورو لكل يوم حجز</CardDescription>
+            <CardDescription>مناطق خارجية مسقوفة — سعر كل يوم</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             {isLoading && prices === null ? (
               <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                جاري التحميل...
+                <Loader2 className="w-4 h-4 animate-spin" />جاري التحميل...
               </div>
             ) : (
               <>
-                <PriceCard
-                  icon={<Car className="w-5 h-5" />}
-                  title="Freifläche"
-                  subtitle="مناطق خارجية مسقوفة"
-                  valueEur={Number(centsToEur(p.freiflaeche))}
-                  onChange={setField("freiflaeche")}
-                  suffix="/يوم"
+                <DayPriceRow
+                  dayLabel="اليوم الأول"
+                  label="سعر اليوم 1"
+                  valueEur={Number(centsToEur(ffD1))}
+                  onChange={setField("freiflaeche_d1")}
+                  color="text-green-600"
                 />
-                <PriceCard
-                  icon={<Building2 className="w-5 h-5" />}
-                  title="Parkhaus"
-                  subtitle="مواقف داخلية مغطاة بالكامل"
-                  valueEur={Number(centsToEur(p.parkhaus))}
-                  onChange={setField("parkhaus")}
-                  suffix="/يوم"
+                <DayPriceRow
+                  dayLabel="اليوم الثاني"
+                  label="سعر اليوم 2"
+                  valueEur={Number(centsToEur(ffD2))}
+                  onChange={setField("freiflaeche_d2")}
+                  color="text-blue-600"
+                />
+                <DayPriceRow
+                  dayLabel="اليوم 3 فما فوق"
+                  label="سعر كل يوم إضافي"
+                  valueEur={Number(centsToEur(ffD3))}
+                  onChange={setField("freiflaeche_d3")}
+                  color="text-purple-600"
                 />
               </>
             )}
           </CardContent>
         </Card>
 
-        {/* Cleaning Controls */}
+        {/* Parkhaus */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              خدمات التنظيف
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Building2 className="w-5 h-5 text-primary" />
+              Parkhaus
             </CardTitle>
-            <CardDescription>أسعار إضافية اختيارية للتنظيف</CardDescription>
+            <CardDescription>مواقف داخلية مغطاة بالكامل — سعر كل يوم</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             {isLoading && prices === null ? (
               <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                جاري التحميل...
+                <Loader2 className="w-4 h-4 animate-spin" />جاري التحميل...
               </div>
             ) : (
               <>
-                <PriceCard
-                  icon={<Sparkles className="w-5 h-5" />}
+                <DayPriceRow
+                  dayLabel="اليوم الأول"
+                  label="سعر اليوم 1"
+                  valueEur={Number(centsToEur(phD1))}
+                  onChange={setField("parkhaus_d1")}
+                  color="text-green-600"
+                />
+                <DayPriceRow
+                  dayLabel="اليوم الثاني"
+                  label="سعر اليوم 2"
+                  valueEur={Number(centsToEur(phD2))}
+                  onChange={setField("parkhaus_d2")}
+                  color="text-blue-600"
+                />
+                <DayPriceRow
+                  dayLabel="اليوم 3 فما فوق"
+                  label="سعر كل يوم إضافي"
+                  valueEur={Number(centsToEur(phD3))}
+                  onChange={setField("parkhaus_d3")}
+                  color="text-purple-600"
+                />
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Cleaning */}
+        <Card className="md:col-span-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="w-5 h-5 text-amber-500" />
+              خدمات التنظيف
+            </CardTitle>
+            <CardDescription>أسعار إضافية اختيارية — تُضاف مرة واحدة للإجمالي</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading && prices === null ? (
+              <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />جاري التحميل...
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3">
+                <CleanPriceRow
+                  icon={<Sparkles className="w-4 h-4" />}
                   title="Außenreinigung"
                   subtitle="تنظيف خارجي للمركبة"
                   valueEur={Number(centsToEur(p.reinigung_aussen))}
                   onChange={setField("reinigung_aussen")}
-                  min={0}
-                  max={999}
-                  suffix="(ثابت)"
                 />
-                <PriceCard
-                  icon={<Sparkles className="w-5 h-5" />}
+                <CleanPriceRow
+                  icon={<Sparkles className="w-4 h-4" />}
                   title="Innenreinigung"
                   subtitle="تنظيف داخلي للمركبة"
                   valueEur={Number(centsToEur(p.reinigung_innen))}
                   onChange={setField("reinigung_innen")}
-                  min={0}
-                  max={999}
-                  suffix="(ثابت)"
                 />
-              </>
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Preview */}
+      {/* Preview Table */}
       {prices !== null && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">معاينة حساب السعر</CardTitle>
-            <CardDescription>كيف يُحسب إجمالي الحجز بناءً على الأسعار الحالية</CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CalendarDays className="w-4 h-4" />
+              معاينة حساب السعر (بدون تنظيف)
+            </CardTitle>
+            <CardDescription>إجمالي الموقف حسب عدد الأيام</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-right py-2 px-3 text-muted-foreground font-medium">مدة الحجز</th>
+                    <th className="text-right py-2 px-3 text-muted-foreground font-medium">أيام</th>
                     <th className="text-center py-2 px-3 text-muted-foreground font-medium">Freifläche</th>
                     <th className="text-center py-2 px-3 text-muted-foreground font-medium">Parkhaus</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[1, 2, 3, 5, 7, 10, 14].map((days, i) => (
+                  {[1, 2, 3, 4, 5, 7, 10, 14].map((days, i) => (
                     <tr key={days} className={i % 2 === 0 ? "bg-muted/30" : ""}>
                       <td className="py-2 px-3 text-right font-medium">{days} {days === 1 ? "يوم" : "أيام"}</td>
                       <td className="py-2 px-3 text-center">
                         <span className="font-bold text-primary">
-                          €{((days * p.freiflaeche) / 100).toFixed(2)}
+                          €{(calcTotal(days, ffD1, ffD2, ffD3) / 100).toFixed(2)}
                         </span>
                       </td>
                       <td className="py-2 px-3 text-center">
                         <span className="font-bold text-primary">
-                          €{((days * p.parkhaus) / 100).toFixed(2)}
+                          €{(calcTotal(days, phD1, phD2, phD3) / 100).toFixed(2)}
                         </span>
                       </td>
                     </tr>
@@ -250,14 +351,13 @@ export function PricingPage() {
                 </tbody>
               </table>
             </div>
-
             <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 gap-3">
               <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                <p className="text-muted-foreground text-xs mb-1">+ Außenreinigung</p>
+                <p className="text-muted-foreground text-xs mb-1">+ Außenreinigung (اختياري)</p>
                 <p className="font-bold">€{(p.reinigung_aussen / 100).toFixed(0)}</p>
               </div>
               <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                <p className="text-muted-foreground text-xs mb-1">+ Innenreinigung</p>
+                <p className="text-muted-foreground text-xs mb-1">+ Innenreinigung (اختياري)</p>
                 <p className="font-bold">€{(p.reinigung_innen / 100).toFixed(0)}</p>
               </div>
             </div>
@@ -265,7 +365,7 @@ export function PricingPage() {
         </Card>
       )}
 
-      {/* Save & Reset */}
+      {/* Save */}
       <div className="flex gap-3">
         <button
           onClick={() => prices && saveMutation.mutate(prices)}
@@ -291,7 +391,7 @@ export function PricingPage() {
       {saveMutation.isSuccess && (
         <div className="flex items-center gap-2 text-sm text-green-600">
           <CheckCircle2 className="w-4 h-4" />
-          تم الحفظ — الأسعار الجديدة تظهر الآن على الموقع
+          تم الحفظ — بعد التحديث (Ctrl+Shift+R) ستظهر الأسعار الجديدة على الموقع
         </div>
       )}
     </div>
