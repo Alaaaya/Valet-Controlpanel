@@ -137,7 +137,9 @@ function normalizePrices(raw: Record<string, number>): BookingPrices {
 export function PricingPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [prices, setPrices] = useState<BookingPrices | null>(null);
+  // Initialize with DEFAULTS immediately so inputs & save button are always active
+  const [prices, setPrices] = useState<BookingPrices>(DEFAULTS);
+  const [loaded, setLoaded] = useState(false);
 
   const { data, isLoading, refetch } = useQuery<Record<string, number>>({
     queryKey: ["booking-prices"],
@@ -146,10 +148,11 @@ export function PricingPage() {
   });
 
   useEffect(() => {
-    if (data && prices === null) {
+    if (data && !loaded) {
       setPrices(normalizePrices(data));
+      setLoaded(true);
     }
-  }, [data]);
+  }, [data, loaded]);
 
   const saveMutation = useMutation({
     mutationFn: (p: BookingPrices) =>
@@ -167,10 +170,10 @@ export function PricingPage() {
     },
   });
 
-  const p = prices ?? DEFAULTS;
+  const p = prices;
 
   const setField = (field: keyof BookingPrices) => (eur: number) =>
-    setPrices((prev) => ({ ...(prev ?? DEFAULTS), [field]: eurToCents(eur) }));
+    setPrices((prev) => ({ ...prev, [field]: eurToCents(eur) }));
 
   const ffD1 = p.freiflaeche_d1, ffD2 = p.freiflaeche_d2, ffD3 = p.freiflaeche_d3;
   const phD1 = p.parkhaus_d1, phD2 = p.parkhaus_d2, phD3 = p.parkhaus_d3;
@@ -202,7 +205,7 @@ export function PricingPage() {
             <CardDescription>مناطق خارجية مسقوفة — سعر كل يوم</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            {isLoading && prices === null ? (
+            {isLoading && !loaded ? (
               <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
                 <Loader2 className="w-4 h-4 animate-spin" />جاري التحميل...
               </div>
@@ -244,7 +247,7 @@ export function PricingPage() {
             <CardDescription>مواقف داخلية مغطاة بالكامل — سعر كل يوم</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            {isLoading && prices === null ? (
+            {isLoading && !loaded ? (
               <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
                 <Loader2 className="w-4 h-4 animate-spin" />جاري التحميل...
               </div>
@@ -286,7 +289,7 @@ export function PricingPage() {
             <CardDescription>أسعار إضافية اختيارية — تُضاف مرة واحدة للإجمالي</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading && prices === null ? (
+            {isLoading && !loaded ? (
               <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
                 <Loader2 className="w-4 h-4 animate-spin" />جاري التحميل...
               </div>
@@ -313,8 +316,7 @@ export function PricingPage() {
       </div>
 
       {/* Preview Table */}
-      {prices !== null && (
-        <Card>
+      <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <CalendarDays className="w-4 h-4" />
@@ -362,14 +364,13 @@ export function PricingPage() {
               </div>
             </div>
           </CardContent>
-        </Card>
-      )}
+      </Card>
 
       {/* Save */}
       <div className="flex gap-3">
         <button
-          onClick={() => prices && saveMutation.mutate(prices)}
-          disabled={saveMutation.isPending || prices === null}
+          onClick={() => saveMutation.mutate(prices)}
+          disabled={saveMutation.isPending}
           className="flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-6 py-2.5
                      text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
         >
@@ -379,7 +380,7 @@ export function PricingPage() {
           حفظ الأسعار على الموقع
         </button>
         <button
-          onClick={() => { setPrices(null); refetch(); }}
+          onClick={() => { setLoaded(false); setPrices(DEFAULTS); refetch(); }}
           disabled={isLoading}
           className="flex items-center gap-2 border border-border rounded-lg px-4 py-2.5
                      text-sm font-medium hover:bg-muted/50 transition-colors"
