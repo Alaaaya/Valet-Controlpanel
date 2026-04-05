@@ -8,6 +8,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const router: IRouter = Router();
 
+// Returns the WordPress base URL with IDN (Umlaut) domain converted to punycode
+// so Node.js fetch() works reliably (e.g. traveldüsseldorf.de → xn--traveldsseldorf-5vb.de)
+function getWpBaseUrl(): string {
+  const raw = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  if (!raw) return "";
+  try {
+    const u = new URL(raw);
+    // Node URL parses IDN but stringifies back to IDN; force punycode via hostname
+    if (/[^\x00-\x7F]/.test(u.hostname)) {
+      return `${u.protocol}//xn--traveldsseldorf-5vb.de`;
+    }
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    if (/[^\x00-\x7F]/.test(raw)) return "https://xn--traveldsseldorf-5vb.de";
+    return raw;
+  }
+}
+
 // ── WordPress Site Settings ──────────────────────────────────────────────────
 
 router.get("/wp/settings", async (req, res): Promise<void> => {
@@ -167,7 +185,7 @@ router.get("/wp/download-parkingpro-plugin", (req, res): void => {
 // ── ParkingPro embed code (stored in WordPress options via bridge) ─────────────
 
 router.get("/wp/parkingpro", async (req, res): Promise<void> => {
-  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_URL = getWpBaseUrl();
   const WP_USER = process.env.WP_USERNAME ?? "";
   const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
   const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -183,7 +201,7 @@ router.get("/wp/parkingpro", async (req, res): Promise<void> => {
 });
 
 router.post("/wp/parkingpro", async (req, res): Promise<void> => {
-  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_URL = getWpBaseUrl();
   const WP_USER = process.env.WP_USERNAME ?? "";
   const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
   const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -199,7 +217,7 @@ router.post("/wp/parkingpro", async (req, res): Promise<void> => {
 // ── Logo URL (stored in WordPress options via bridge) ─────────────────────────
 
 router.get("/wp/logo", async (req, res): Promise<void> => {
-  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_URL = getWpBaseUrl();
   const WP_USER = process.env.WP_USERNAME ?? "";
   const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
   const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -215,7 +233,7 @@ router.get("/wp/logo", async (req, res): Promise<void> => {
 });
 
 router.post("/wp/logo", async (req, res): Promise<void> => {
-  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_URL = getWpBaseUrl();
   const WP_USER = process.env.WP_USERNAME ?? "";
   const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
   const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -232,7 +250,7 @@ router.post("/wp/logo", async (req, res): Promise<void> => {
 
 router.get("/wp/bridge-status", async (req, res): Promise<void> => {
   try {
-    const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+    const WP_URL = getWpBaseUrl();
     const WP_USER = process.env.WP_USERNAME ?? "";
     const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
     const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -252,7 +270,7 @@ router.get("/wp/bridge-status", async (req, res): Promise<void> => {
 // ── TVD Admin Bridge: sections proxy ─────────────────────────────────────────
 
 router.get("/wp/live-sections", async (req, res): Promise<void> => {
-  const WP_URL = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_URL = getWpBaseUrl();
   const WP_USER = process.env.WP_USERNAME ?? "";
   const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
   const token = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -265,7 +283,7 @@ router.get("/wp/live-sections", async (req, res): Promise<void> => {
 });
 
 router.post("/wp/live-sections", async (req, res): Promise<void> => {
-  const WP_URL = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_URL = getWpBaseUrl();
   const WP_USER = process.env.WP_USERNAME ?? "";
   const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
   const token = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -285,7 +303,7 @@ router.post("/wp/live-sections", async (req, res): Promise<void> => {
 // ── TVD Admin Bridge: booking email settings ──────────────────────────────────
 
 router.get("/wp/booking-email", async (req, res): Promise<void> => {
-  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_URL = getWpBaseUrl();
   const WP_USER = process.env.WP_USERNAME ?? "";
   const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
   const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -301,7 +319,7 @@ router.get("/wp/booking-email", async (req, res): Promise<void> => {
 });
 
 router.post("/wp/booking-email", async (req, res): Promise<void> => {
-  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_URL = getWpBaseUrl();
   const WP_USER = process.env.WP_USERNAME ?? "";
   const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
   const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -342,33 +360,49 @@ function buildInlinePricePatch(prices: Record<string, number>): string {
   const PRA = Number(prices.reinigung_aussen) || 4000;
   const PRI = Number(prices.reinigung_innen)  || 7000;
 
+  // NOTE: use \\u20ac so the template literal produces the literal 6-char escape \\u20ac
+  // which atob can handle (pure ASCII). The browser then evaluates '\\u20ac' as the € char.
   const js = `(function(){
 var PF=${PF},PP=${PP},PRA=${PRA},PRI=${PRI};
-var myParkart='',myReinA=false,myReinI=false;
-function getDays(){var a=document.getElementById('tvd_anreise'),b=document.getElementById('tvd_abreise');if(!a||!b||!a.value||!b.value)return 0;var d=(new Date(b.value)-new Date(a.value))/86400000;return d>0?Math.round(d):0;}
-function myTotal(){var days=getDays();var pd=myParkart==='parkhaus'?PP:(myParkart?PF:0);return(days*pd+(myReinA?PRA:0)+(myReinI?PRI:0))/100;}
-function fixDisplay(){
-  var d=document.getElementById('tvd_price_display');
-  if(d){var v=myTotal().toFixed(2);if(d.textContent!==v)d.textContent=v;}
-  var dd=document.getElementById('tvd_days_display');
-  if(dd){var dv=String(getDays());if(dd.textContent!==dv)dd.textContent=dv;}
-}
-function fixSummary(){
-  var s=document.getElementById('tvd-summary');if(!s)return;
-  var divs=s.querySelectorAll('div');var last=divs[divs.length-1];if(!last)return;
-  var spans=last.querySelectorAll('span');var priceSpan=spans[spans.length-1];
-  if(priceSpan&&priceSpan.textContent&&priceSpan.textContent.indexOf('\u20ac')>-1){
-    priceSpan.textContent='\u20ac'+myTotal().toFixed(2);
+/* Fix price labels on page load */
+document.querySelectorAll('.tvd-parkart-opt').forEach(function(el){
+  var spans=el.querySelectorAll('span');
+  spans.forEach(function(sp){
+    if(sp.textContent&&sp.textContent.indexOf('/Tag')>-1){
+      var val=el.dataset.val||'';
+      sp.textContent='\\u20ac'+((val==='parkhaus'?PP:PF)/100)+'/Tag';
+    }
+  });
+});
+/* Fix price in AJAX submission and confirmation email */
+var origFetch=window.fetch;
+window.fetch=function(url,opts){
+  if(opts&&opts.body instanceof FormData){
+    try{
+      if(opts.body.get('action')==='tvd_pl_submit_booking'){
+        var pi=document.querySelector('.tvd-parkart-opt input:checked');
+        var pa=pi?pi.value:'';
+        var ra=document.querySelector('.tvd-rein-opt[data-val=aussen] input');
+        var ri=document.querySelector('.tvd-rein-opt[data-val=innen] input');
+        var a=document.getElementById('tvd_anreise');
+        var b=document.getElementById('tvd_abreise');
+        var days=0;
+        if(a&&b&&a.value&&b.value){var dd=(new Date(b.value)-new Date(a.value))/86400000;days=dd>0?Math.round(dd):0;}
+        var pd=pa==='parkhaus'?PP:(pa?PF:0);
+        var tot=(days*pd+((ra&&ra.checked)?PRA:0)+((ri&&ri.checked)?PRI:0))/100;
+        var nfd=new FormData();
+        opts.body.forEach(function(v,k){
+          if(k==='price')nfd.append('price',tot.toFixed(2));
+          else if(k==='days')nfd.append('days',String(days));
+          else nfd.append(k,v);
+        });
+        opts.body=nfd;
+      }
+    }catch(e){}
   }
-}
-document.querySelectorAll('.tvd-parkart-opt').forEach(function(el){el.addEventListener('click',function(){myParkart=this.dataset.val||'';setTimeout(fixDisplay,0);});});
-document.querySelectorAll('.tvd-rein-opt').forEach(function(el){el.addEventListener('click',function(){var val=this.dataset.val,cb=this.querySelector('input');if(val==='aussen')myReinA=!!cb.checked;else myReinI=!!cb.checked;setTimeout(fixDisplay,0);});});
-var keine=document.querySelector('.tvd-keine-rein');if(keine)keine.addEventListener('click',function(){myReinA=false;myReinI=false;setTimeout(fixDisplay,0);});
-['tvd_anreise','tvd_abreise'].forEach(function(id){var el=document.getElementById(id);if(el)el.addEventListener('change',function(){setTimeout(fixDisplay,0);});});
-if(window.tvdNextStep){var _origNext=window.tvdNextStep;window.tvdNextStep=function(dir){_origNext.call(this,dir);setTimeout(function(){fixDisplay();fixSummary();},50);};}
-document.querySelectorAll('.tvd-parkart-opt').forEach(function(el){var spans=el.querySelectorAll('span');spans.forEach(function(sp){if(sp.textContent&&sp.textContent.indexOf('/Tag')>-1){var val=el.dataset.val||'';sp.textContent='\u20ac'+((val==='parkhaus'?PP:PF)/100)+'/Tag';}});});
-var origFetch=window.fetch;window.fetch=function(url,opts){if(opts&&opts.body instanceof FormData){try{if(opts.body.get('action')==='tvd_pl_submit_booking'){var nfd=new FormData();var tot=myTotal(),days=getDays();opts.body.forEach(function(v,k){if(k==='price')nfd.append('price',tot.toFixed(2));else if(k==='days')nfd.append('days',String(days));else nfd.append(k,v);});opts.body=nfd;}}catch(e){}}return origFetch.apply(this,arguments);};
-console.log('[TVD] Price patch v3. FF=\u20ac'+(PF/100)+' PH=\u20ac'+(PP/100));
+  return origFetch.apply(this,arguments);
+};
+console.log('[TVD v4] PF='+(PF/100)+' PP='+(PP/100));
 })();`;
 
   const b64 = Buffer.from(js).toString("base64");
@@ -377,7 +411,7 @@ console.log('[TVD] Price patch v3. FF=\u20ac'+(PF/100)+' PH=\u20ac'+(PP/100));
 
 // Push the price-patch injection into WordPress parkingpro embed option
 async function pushPricePatchEmbed(prices: Record<string, number>): Promise<void> {
-  const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+  const WP_URL  = getWpBaseUrl();
   const WP_USER = process.env.WP_USERNAME ?? "";
   const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
   const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -517,7 +551,7 @@ router.get("/wp/price-patch.js", (req, res): void => {
 
 router.get("/wp/booking-prices", async (_req, res): Promise<void> => {
   try {
-    const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+    const WP_URL = getWpBaseUrl();
     const WP_USER = process.env.WP_USERNAME ?? "";
     const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
     const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -541,7 +575,7 @@ router.post("/wp/booking-prices", async (req, res): Promise<void> => {
   pushPricePatchEmbed(body as Record<string, number>).catch(() => { /* silent */ });
 
   try {
-    const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+    const WP_URL = getWpBaseUrl();
     const WP_USER = process.env.WP_USERNAME ?? "";
     const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
     const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -582,7 +616,7 @@ router.get("/wp/pricing", async (_req, res): Promise<void> => {
   const local = readPricingLocal();
   // Try WordPress too, but local file is authoritative
   try {
-    const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+    const WP_URL = getWpBaseUrl();
     const WP_USER = process.env.WP_USERNAME ?? "";
     const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
     const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
@@ -607,7 +641,7 @@ router.post("/wp/pricing", async (req, res): Promise<void> => {
   writePricingLocal(body);
   // Try to sync to WordPress (best-effort)
   try {
-    const WP_URL  = (process.env.WP_SITE_URL ?? "").replace(/\/$/, "");
+    const WP_URL = getWpBaseUrl();
     const WP_USER = process.env.WP_USERNAME ?? "";
     const WP_PASS = (process.env.WP_APP_PASSWORD ?? "").replace(/\s/g, "");
     const token   = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64");
