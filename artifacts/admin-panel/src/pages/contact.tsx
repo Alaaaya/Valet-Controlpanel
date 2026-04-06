@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useGetContact, getGetContactQueryKey, useUpdateContact } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -14,30 +12,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Save, Loader2, Phone, Mail, MapPin, Facebook, Instagram, Twitter } from "lucide-react";
 
 const contactSchema = z.object({
-  whatsappNumber: z.string().min(1, { message: "رقم الواتساب مطلوب" }),
-  whatsappMessage: z.string().min(1, { message: "رسالة الحجز مطلوبة" }),
-  email: z.string().email({ message: "البريد الإلكتروني غير صحيح" }),
-  phone: z.string().min(1, { message: "رقم الهاتف مطلوب" }),
-  address: z.string().min(1, { message: "العنوان مطلوب" }),
-  bookingUrl: z.string().url({ message: "رابط الحجز غير صحيح" }),
-  facebookUrl: z.string().url({ message: "رابط فيسبوك غير صحيح" }).optional().or(z.literal("")),
-  instagramUrl: z.string().url({ message: "رابط انستغرام غير صحيح" }).optional().or(z.literal("")),
-  twitterUrl: z.string().url({ message: "رابط تويتر غير صحيح" }).optional().or(z.literal("")),
+  whatsappNumber: z.string().min(1),
+  whatsappMessage: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().min(1),
+  address: z.string().min(1),
+  bookingUrl: z.string().url(),
+  facebookUrl: z.string().optional(),
+  instagramUrl: z.string().optional(),
+  twitterUrl: z.string().optional(),
 });
 
 type ContactFormValues = z.infer<typeof contactSchema>;
 
 export function ContactPage() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const initialized = useRef(false);
-  const [whatsappPreview, setWhatsappPreview] = useState("");
 
-  const { data: contact, isLoading } = useGetContact({ 
-    query: { queryKey: getGetContactQueryKey() } 
-  });
-  
-  const updateContact = useUpdateContact();
+  const [contact, setContact] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [whatsappPreview, setWhatsappPreview] = useState("");
 
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactSchema),
@@ -54,64 +49,64 @@ export function ContactPage() {
     },
   });
 
-  // Watch values to generate preview
+  // تحميل البيانات
+  useEffect(() => {
+    fetch("/api/contact")
+      .then((res) => res.json())
+      .then((data) => {
+        setContact(data);
+        setIsLoading(false);
+      })
+      .catch(() => setIsLoading(false));
+  }, []);
+
+  // تعبئة الفورم
+  useEffect(() => {
+    if (contact && !initialized.current) {
+      form.reset(contact);
+      initialized.current = true;
+    }
+  }, [contact, form]);
+
+  // preview واتساب
   const watchWhatsappNumber = form.watch("whatsappNumber");
   const watchWhatsappMessage = form.watch("whatsappMessage");
 
   useEffect(() => {
     if (watchWhatsappNumber && watchWhatsappMessage) {
-      // Clean number for URL
-      const cleanNumber = watchWhatsappNumber.replace(/\D/g, "");
-      const encodedMessage = encodeURIComponent(watchWhatsappMessage);
-      setWhatsappPreview(`https://wa.me/${cleanNumber}?text=${encodedMessage}`);
-    } else {
-      setWhatsappPreview("");
+      const clean = watchWhatsappNumber.replace(/\D/g, "");
+      const msg = encodeURIComponent(watchWhatsappMessage);
+      setWhatsappPreview(`https://wa.me/${clean}?text=${msg}`);
     }
   }, [watchWhatsappNumber, watchWhatsappMessage]);
 
-  useEffect(() => {
-    if (contact && !initialized.current) {
-      form.reset({
-        whatsappNumber: contact.whatsappNumber,
-        whatsappMessage: contact.whatsappMessage,
-        email: contact.email,
-        phone: contact.phone,
-        address: contact.address,
-        bookingUrl: contact.bookingUrl,
-        facebookUrl: contact.facebookUrl || "",
-        instagramUrl: contact.instagramUrl || "",
-        twitterUrl: contact.twitterUrl || "",
-      });
-      initialized.current = true;
-    }
-  }, [contact, form]);
-
+  // حفظ
   const onSubmit = (data: ContactFormValues) => {
-    updateContact.mutate(
-      { data },
-      {
-        onSuccess: (updatedData) => {
-          queryClient.setQueryData(getGetContactQueryKey(), updatedData);
-          toast({
-            title: "تم الحفظ بنجاح",
-            description: "تم تحديث معلومات التواصل بنجاح.",
-          });
-        },
-        onError: () => {
-          toast({
-            title: "خطأ في الحفظ",
-            description: "حدث خطأ أثناء محاولة حفظ المعلومات.",
-            variant: "destructive",
-          });
-        },
-      }
-    );
-  };
+    setIsSaving(true);
 
-  const handleGenerateBookingUrl = () => {
-    if (whatsappPreview) {
-      form.setValue("bookingUrl", whatsappPreview, { shouldValidate: true });
-    }
+    fetch("/api/contact", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    })
+      .then((res) => res.json())
+      .then((updated) => {
+        setContact(updated);
+        toast({
+          title: "تم الحفظ",
+          description: "تم تحديث معلومات التواصل",
+        });
+      })
+      .catch(() => {
+        toast({
+          title: "خطأ",
+          description: "فشل الحفظ",
+          variant: "destructive",
+        });
+      })
+      .finally(() => setIsSaving(false));
   };
 
   if (isLoading) {
@@ -125,195 +120,85 @@ export function ContactPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">معلومات التواصل</h1>
-        <p className="text-muted-foreground mt-2">
-          إدارة أرقام الهواتف والبريد الإلكتروني وروابط التواصل الاجتماعي.
-        </p>
-      </div>
+      <h1 className="text-3xl font-bold">معلومات التواصل</h1>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
           <Card>
             <CardHeader>
-              <CardTitle>معلومات الاتصال الأساسية</CardTitle>
-              <CardDescription>
-                ستظهر هذه المعلومات في قسم اتصل بنا وتذييل الموقع.
-              </CardDescription>
+              <CardTitle>معلومات أساسية</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2"><Phone className="w-4 h-4" /> رقم الهاتف</FormLabel>
-                      <FormControl>
-                        <Input {...field} dir="ltr" className="text-left" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2"><Mail className="w-4 h-4" /> البريد الإلكتروني</FormLabel>
-                      <FormControl>
-                        <Input {...field} dir="ltr" className="text-left" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2"><MapPin className="w-4 h-4" /> العنوان</FormLabel>
-                    <FormControl>
-                      <Input {...field} dir="auto" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
+              <FormField control={form.control} name="phone" render={({ field }) => (
+                <FormItem>
+                  <FormLabel><Phone className="inline w-4" /> الهاتف</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel><Mail className="inline w-4" /> الإيميل</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="address" render={({ field }) => (
+                <FormItem>
+                  <FormLabel><MapPin className="inline w-4" /> العنوان</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                </FormItem>
+              )} />
+
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>الحجز عبر واتساب</CardTitle>
-              <CardDescription>
-                إعدادات زر الحجز الذي يوجه العميل إلى واتساب.
-              </CardDescription>
+              <CardTitle>واتساب</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="whatsappNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>رقم الواتساب (مع رمز الدولة)</FormLabel>
-                      <FormControl>
-                        <Input {...field} dir="ltr" className="text-left" placeholder="+49..." />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="whatsappMessage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>رسالة الحجز الافتراضية</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} dir="auto" placeholder="مرحباً، أود حجز خدمة..." />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="bg-muted/50 p-4 rounded-md border border-border">
-                <p className="text-sm font-medium mb-2">رابط الواتساب المتولد:</p>
-                <div className="flex gap-2 items-center">
-                  <Input readOnly value={whatsappPreview} dir="ltr" className="text-left bg-background opacity-70" />
-                  <Button type="button" variant="secondary" onClick={handleGenerateBookingUrl}>
-                    استخدام كرابط حجز
-                  </Button>
-                </div>
-              </div>
 
-              <FormField
-                control={form.control}
-                name="bookingUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>رابط الحجز الفعلي (زر احجز الآن)</FormLabel>
-                    <FormControl>
-                      <Input {...field} dir="ltr" className="text-left" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+              <FormField control={form.control} name="whatsappNumber" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>رقم واتساب</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                </FormItem>
+              )} />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>روابط التواصل الاجتماعي</CardTitle>
-              <CardDescription>
-                أضف روابط حساباتك على وسائل التواصل الاجتماعي. اترك الحقل فارغاً لإخفاء الأيقونة.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="facebookUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2"><Facebook className="w-4 h-4" /> رابط فيسبوك</FormLabel>
-                    <FormControl>
-                      <Input {...field} dir="ltr" className="text-left" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="instagramUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2"><Instagram className="w-4 h-4" /> رابط انستغرام</FormLabel>
-                    <FormControl>
-                      <Input {...field} dir="ltr" className="text-left" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="twitterUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2"><Twitter className="w-4 h-4" /> رابط تويتر</FormLabel>
-                    <FormControl>
-                      <Input {...field} dir="ltr" className="text-left" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-            <CardFooter className="bg-muted/50 py-4 border-t flex justify-end">
-              <Button type="submit" disabled={updateContact.isPending}>
-                {updateContact.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin ml-2" />
-                    جاري الحفظ...
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4 ml-2" />
-                    حفظ التغييرات
-                  </>
-                )}
+              <FormField control={form.control} name="whatsappMessage" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>الرسالة</FormLabel>
+                  <FormControl><Textarea {...field} /></FormControl>
+                </FormItem>
+              )} />
+
+              <Input readOnly value={whatsappPreview} />
+
+              <Button type="button" onClick={() => form.setValue("bookingUrl", whatsappPreview)}>
+                استخدام كرابط حجز
               </Button>
-            </CardFooter>
+
+            </CardContent>
           </Card>
+
+          <CardFooter>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="animate-spin mr-2" />
+                  جاري الحفظ
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2" />
+                  حفظ
+                </>
+              )}
+            </Button>
+          </CardFooter>
 
         </form>
       </Form>
