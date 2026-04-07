@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Save, Loader2 } from "lucide-react";
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 const settingsSchema = z.object({
   siteName: z.string().min(1),
   heroTitle: z.string().min(1),
@@ -54,7 +56,7 @@ export function SettingsPage() {
 
   // 🔥 تحميل البيانات
   useEffect(() => {
-    fetch("/api/settings")
+    fetch(`${BASE}/api/settings`)
       .then((res) => res.json())
       .then((data) => {
         setSettings(data);
@@ -75,7 +77,7 @@ export function SettingsPage() {
   const onSubmit = (data: SettingsFormValues) => {
     setIsSaving(true);
 
-    fetch("/api/settings", {
+    fetch(`${BASE}/api/settings`, {
       method: "POST", // أو PUT حسب backend
       headers: {
         "Content-Type": "application/json",

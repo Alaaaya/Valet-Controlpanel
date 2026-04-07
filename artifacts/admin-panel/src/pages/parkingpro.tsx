@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save, ExternalLink, Info, CheckCircle2, Loader2, Car } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -140,9 +141,9 @@ export function ParkingProPage() {
       <div className="bg-muted/40 border border-border rounded-xl p-4 text-sm text-muted-foreground text-end">
         <span className="font-medium text-foreground">ترتيب القسم:</span>{" "}
         يمكنك تغيير ترتيب قسم ParkingPro أو إخفاءه من صفحة{" "}
-        <a href="/sections" className="underline text-primary font-medium">
+        <Link href="/sections" className="underline text-primary font-medium">
           إدارة الأقسام
-        </a>
+        </Link>
         .
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Save, Loader2 } from "lucide-react";
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
 
 const schema = z.object({
@@ -49,7 +50,7 @@ export function ColorsPage() {
 
   // تحميل
   useEffect(() => {
-    fetch("/api/colors")
+    fetch(`${BASE}/api/colors`)
       .then(res => res.json())
       .then(data => {
         form.reset(data);
@@ -62,7 +63,7 @@ export function ColorsPage() {
   const onSubmit = (data: any) => {
     setSaving(true);
 
-    fetch("/api/colors", {
+    fetch(`${BASE}/api/colors`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

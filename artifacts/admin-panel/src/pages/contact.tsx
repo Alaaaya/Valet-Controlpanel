@@ -11,6 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Save, Loader2, Phone, Mail, MapPin, Facebook, Instagram, Twitter } from "lucide-react";
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 const contactSchema = z.object({
   whatsappNumber: z.string().min(1),
   whatsappMessage: z.string().min(1),
@@ -51,7 +53,7 @@ export function ContactPage() {
 
   // تحميل البيانات
   useEffect(() => {
-    fetch("/api/contact")
+    fetch(`${BASE}/api/contact`)
       .then((res) => res.json())
       .then((data) => {
         setContact(data);
@@ -84,7 +86,7 @@ export function ContactPage() {
   const onSubmit = (data: ContactFormValues) => {
     setIsSaving(true);
 
-    fetch("/api/contact", {
+    fetch(`${BASE}/api/contact`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

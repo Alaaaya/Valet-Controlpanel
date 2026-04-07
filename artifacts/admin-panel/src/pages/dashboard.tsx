@@ -24,7 +24,7 @@ export function DashboardPage() {
 
   // ✅ health check بدل hook
   useEffect(() => {
-    fetch("/api/healthz")
+    fetch(`${BASE}/api/healthz`)
       .then((res) => res.json())
       .then((data) => {
         setHealth(data);
